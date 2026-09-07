@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - SiSurat Sandya</title>
+    <!-- Lucide Icons & Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+
+    <!-- Container Utama Split Screen -->
+    <div class="bg-white rounded-2xl shadow-xl overflow-hidden max-w-4xl w-full flex flex-col md:flex-row border border-gray-200">
+        
+        <!-- BAGIAN KIRI: Branding & Ilustrasi Sesuai Gambar -->
+        <div class="w-full md:w-1/2 bg-slate-50 p-8 flex flex-col justify-between items-center relative border-r border-gray-100">
+            
+            <!-- Logo Top-Left: Icon Surat + SiSurat -->
+            <div class="w-full flex items-center gap-3">
+                <div class="border-2 border-gray-800 p-2 rounded-md bg-white shadow-sm">
+                    <i data-lucide="mail" class="w-6 h-6 text-gray-800"></i>
+                </div>
+                <span class="text-2xl font-bold tracking-wide text-gray-800">SiSurat</span>
+            </div>
+
+            <!-- Teks Brand Tengah: Sandya -->
+            <div class="my-8 text-center">
+                <h1 class="text-4xl font-extrabold text-blue-600 tracking-wider">Sandya</h1>
+            </div>
+
+            <!-- Ilustrasi Pengguna (Gambar OIP.png + Gelembung Logo) -->
+            <div class="relative flex flex-col items-center justify-end h-48 w-full">
+                <!-- Gelembung Pesan (hanya logo SiSurat) dekat gambar -->
+                <img src="/m.png" alt="Logo SiSurat" class="absolute top-0 right-0 w-12 h-12 rounded-full border-2 border-white shadow-md transform translate-x-1/2 -translate-y-1/2">
+                <!-- Gambar Pengguna -->
+                <img src="/oip.png" alt="Ilustrasi Pengguna" class="h-40 w-auto object-contain mt-auto translate-y-2 drop-shadow-md">
+            </div>
+
+        </div>
+
+        <!-- BAGIAN KANAN: Form Login Sesuai Gambar -->
+        <div class="w-full md:w-1/2 p-8 md:p-12 flex items-center justify-center">
+            
+            <!-- Card Form Biru Muda -->
+            <div class="w-full max-w-sm bg-blue-100/70 border border-blue-200 rounded-2xl p-6 shadow-sm">
+                
+                <h2 class="text-2xl font-semibold text-center text-gray-800 mb-6">Login</h2>
+                
+                <form action="/login" method="POST" class="space-y-4">
+                    <!-- Field Username -->
+                    <div>
+                        <label for="username" class="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                        <input type="text" id="username" name="username" required
+                            class="w-full px-4 py-2 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                            placeholder="Masukkan username">
+                    </div>
+
+                    <!-- Field Password -->
+                    <div>
+                        <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                        <input type="password" id="password" name="password" required
+                            class="w-full px-4 py-2 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                            placeholder="Masukkan password">
+                        
+                        <!-- Link Lupa Password -->
+                        <div class="mt-1 text-left">
+                            <a href="#" class="text-xs text-blue-700 hover:underline">Lupa Password?</a>
+                        </div>
+                    </div>
+
+                    <!-- Tombol Masuk -->
+                    <div class="pt-2">
+                        <button type="submit" 
+                            class="w-full py-2.5 bg-sky-500 hover:bg-sky-600 text-white font-semibold rounded-md shadow transition duration-200">
+                            Masuk
+                        </button>
+                    </div>
+                </form>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <script>
+        // Inisialisasi ikon Lucide
+        lucide.createIcons();
+    </script>
+</body>
+</html>
