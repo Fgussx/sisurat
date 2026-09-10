@@ -9,6 +9,9 @@ import dotenv from 'dotenv'
 import mongoose from 'mongoose'
 import jwt from 'jsonwebtoken'
 import cookieParser from 'cookie-parser'
+import helmet from 'helmet'
+import joi from 'joi'
+import * as validators from './server/validators.js'
 import { Role, Pengguna, FormatNomorSurat, TandaTanganDigital, SuratMasuk, SuratKeluar, Reminder, CustomFolder } from './models.js'
 
 dotenv.config()
@@ -18,6 +21,15 @@ const app = express()
 app.use(cors())
 app.use(express.json())
 app.use(cookieParser())
+app.use(helmet())
+app.use(helmet.contentSecurityPolicy({
+  directives: {
+    defaultSrc: ["'self'"],
+    scriptSrc: ["'self'"],
+    styleSrc: ["'self'", "'unsafe-inline'"],
+    imgSrc: ["'self'", "data:", "https:"],
+  }
+}))
 
 // ==========================================
 // JWT Utility Functions
@@ -73,6 +85,32 @@ async function verifyAdminRole(req, res, next) {
     next()
   } catch (err) {
     res.status(500).json({ success: false, error: 'Server error' })
+  }
+}
+
+// Middleware: Validate Request Body
+function validateRequest(schema) {
+  return (req, res, next) => {
+    const { error, value } = schema.validate(req.body, {
+      abortEarly: false,
+      stripUnknown: true,
+      convert: true,
+    })
+
+    if (error) {
+      const details = error.details.map(d => ({
+        field: d.path.join('.'),
+        message: d.message,
+      }))
+      return res.status(400).json({
+        success: false,
+        error: 'Validasi gagal',
+        details,
+      })
+    }
+
+    req.body = value
+    next()
   }
 }
 
@@ -274,12 +312,8 @@ async function sendOTP(username, email, otp, type = 'reset') {
   }
 }
 
-app.post('/api/login', async (req, res) => {
+app.post('/api/login', validateRequest(validators.loginSchema), async (req, res) => {
   const { username, password } = req.body
-
-  if (!username || !password) {
-    return res.status(400).json({ success: false, error: 'Username dan password wajib diisi' })
-  }
 
   try {
     const user = await Pengguna.findOne({ username, is_deleted: false }).populate('id_role')
@@ -335,12 +369,8 @@ app.post('/api/refresh-token', (req, res) => {
   res.json({ success: true, message: 'Token refreshed', accessToken })
 })
 
-app.post('/api/send-otp', async (req, res) => {
+app.post('/api/send-otp', validateRequest(validators.sendOtpSchema), async (req, res) => {
   const { username } = req.body
-
-  if (!username) {
-    return res.status(400).json({ error: 'Username wajib diisi' })
-  }
 
   try {
     const user = await Pengguna.findOne({ username, is_deleted: false })
@@ -367,12 +397,8 @@ app.post('/api/send-otp', async (req, res) => {
   }
 })
 
-app.post('/api/verify-otp', (req, res) => {
+app.post('/api/verify-otp', validateRequest(validators.verifyOtpSchema), (req, res) => {
   const { username, otp } = req.body
-
-  if (!username || !otp) {
-    return res.status(400).json({ error: 'Username dan OTP wajib diisi' })
-  }
 
   const stored = otpStore.get(username)
 
@@ -393,16 +419,8 @@ app.post('/api/verify-otp', (req, res) => {
   res.json({ success: true, message: 'OTP terverifikasi', token: username })
 })
 
-app.post('/api/reset-password', async (req, res) => {
+app.post('/api/reset-password', validateRequest(validators.resetPasswordSchema), async (req, res) => {
   const { username, newPassword } = req.body
-
-  if (!username || !newPassword) {
-    return res.status(400).json({ success: false, error: 'Username dan password baru wajib diisi' })
-  }
-
-  if (newPassword.length < 8) {
-    return res.status(400).json({ success: false, error: 'Password minimal 8 karakter' })
-  }
 
   try {
     const user = await Pengguna.findOne({ username, is_deleted: false })
@@ -421,16 +439,8 @@ app.post('/api/reset-password', async (req, res) => {
   }
 })
 
-app.post('/api/create-user', authenticateToken, verifyAdminRole, async (req, res) => {
+app.post('/api/create-user', authenticateToken, verifyAdminRole, validateRequest(validators.createUserSchema), async (req, res) => {
   const { username, password, nama, email, id_role } = req.body
-
-  if (!username || !password || !nama || !email || !id_role) {
-    return res.status(400).json({ success: false, error: 'Username, password, nama, email, dan id_role wajib diisi' })
-  }
-
-  if (password.length < 8) {
-    return res.status(400).json({ success: false, error: 'Password minimal 8 karakter' })
-  }
 
   try {
     const existingUser = await Pengguna.findOne({ username, is_deleted: false })
@@ -517,12 +527,8 @@ app.get('/api/users', authenticateToken, verifyAdminRole, async (req, res) => {
   }
 })
 
-app.delete('/api/delete-user', authenticateToken, verifyAdminRole, async (req, res) => {
+app.delete('/api/delete-user', authenticateToken, verifyAdminRole, validateRequest(validators.deleteUserSchema), async (req, res) => {
   const { username } = req.body
-
-  if (!username) {
-    return res.status(400).json({ success: false, error: 'Username wajib diisi' })
-  }
 
   try {
     const user = await Pengguna.findOne({ username, is_deleted: false })
@@ -540,16 +546,8 @@ app.delete('/api/delete-user', authenticateToken, verifyAdminRole, async (req, r
   }
 })
 
-app.post('/api/change-password', authenticateToken, async (req, res) => {
+app.post('/api/change-password', authenticateToken, validateRequest(validators.changePasswordSchema), async (req, res) => {
   const { username, newPassword } = req.body
-
-  if (!username || !newPassword) {
-    return res.status(400).json({ success: false, error: 'Username dan password baru wajib diisi' })
-  }
-
-  if (newPassword.length < 8) {
-    return res.status(400).json({ success: false, error: 'Password minimal 8 karakter' })
-  }
 
   try {
     const user = await Pengguna.findOne({ username, is_deleted: false })
@@ -659,12 +657,8 @@ app.get('/api/surat-masuk/:id', async (req, res) => {
   }
 })
 
-app.post('/api/surat-masuk', async (req, res) => {
+app.post('/api/surat-masuk', authenticateToken, validateRequest(validators.createSuratMasukSchema), async (req, res) => {
   const { id_user, nomor_surat, pengirim, folder, perihal, isi_surat, kategori, jenis_surat, tanggal_terima, file_lampiran } = req.body
-
-  if (!nomor_surat || !pengirim || !perihal || !tanggal_terima) {
-    return res.status(400).json({ error: 'Field wajib tidak lengkap' })
-  }
 
   try {
     const userId = await resolveUserId(id_user)
@@ -700,13 +694,9 @@ app.post('/api/surat-masuk', async (req, res) => {
   }
 })
 
-app.patch('/api/surat-masuk/:id', async (req, res) => {
+app.patch('/api/surat-masuk/:id', authenticateToken, validateRequest(validators.updateSuratMasukSchema), async (req, res) => {
   const { id } = req.params
   const { perihal, isi_surat, kategori, folder, nomor_surat, pengirim, tanggal_terima, jenis_surat, id_surat_keluar_ref } = req.body
-
-  if (!perihal) {
-    return res.status(400).json({ error: 'Perihal wajib diisi' })
-  }
 
   try {
     const updateData = {}
@@ -868,14 +858,11 @@ app.get('/api/surat-keluar/:id', async (req, res) => {
   }
 })
 
-app.post('/api/surat-keluar', async (req, res) => {
+app.post('/api/surat-keluar', authenticateToken, validateRequest(validators.createSuratKeluarSchema), async (req, res) => {
    const { id_user, nomor_surat, tujuan, folder, perihal, jenis_surat, isi_surat, kategori, tanggal_kirim, file_draft, auto_nomor, id_surat_masuk_ref } = req.body
 
    console.log("POST /api/surat-keluar - Full request body:", JSON.stringify(req.body, null, 2))
 
-   // Auto-generate nomor surat if auto_nomor flag is set
-   // Format: {kodeJenis}.{urutan}/SSI-PCT/{bulanRomawi}/{tahun}
-   // Example: 04.011/SSI-PCT/V/2026
    let finalNomor = nomor_surat
    if (auto_nomor && jenis_surat && tanggal_kirim) {
      try {
@@ -994,16 +981,12 @@ app.post('/api/surat-keluar', async (req, res) => {
    }
   })
 
-app.patch('/api/surat-keluar/:id', async (req, res) => {
+app.patch('/api/surat-keluar/:id', authenticateToken, validateRequest(validators.updateSuratKeluarSchema), async (req, res) => {
    const { id } = req.params
    const { perihal, jenis_surat, isi_surat, kategori, folder, file_draft, nomor_surat, tujuan, tanggal_kirim, file_final_ttd, id_ttd } = req.body
 
-   if (!perihal) {
-     return res.status(400).json({ error: 'Perihal wajib diisi' })
-   }
-
     try {
-      const updateData = {}
+       const updateData = {}
       if (perihal) updateData.perihal = perihal
       if (jenis_surat !== undefined) updateData.jenis_surat = jenis_surat
       if (isi_surat !== undefined) updateData.isi_surat = isi_surat || ''
@@ -1033,13 +1016,9 @@ app.patch('/api/surat-keluar/:id', async (req, res) => {
    }
  })
 
-app.patch('/api/surat-keluar/:id/approval', async (req, res) => {
+app.patch('/api/surat-keluar/:id/approval', authenticateToken, validateRequest(validators.updateSuratKeluarApprovalSchema), async (req, res) => {
   const { id } = req.params
   const { status_approval, approved_by, catatan_revisi } = req.body
-
-  if (!status_approval || !['menunggu', 'disetujui', 'ditolak'].includes(status_approval)) {
-    return res.status(400).json({ error: 'Status approval tidak valid' })
-  }
 
   try {
     const updateData = {
@@ -1104,16 +1083,8 @@ app.get('/api/custom-folders/:tipe', async (req, res) => {
   }
 })
 
-app.post('/api/custom-folders', async (req, res) => {
+app.post('/api/custom-folders', authenticateToken, validateRequest(validators.createCustomFolderSchema), async (req, res) => {
   const { tipe_surat, nama_folder } = req.body
-
-  if (!tipe_surat || !nama_folder) {
-    return res.status(400).json({ error: 'Tipe surat dan nama folder wajib diisi' })
-  }
-
-  if (!['masuk', 'keluar'].includes(tipe_surat)) {
-    return res.status(400).json({ error: 'Tipe surat tidak valid' })
-  }
 
   try {
     const existing = await CustomFolder.findOne({ tipe_surat, nama_folder })
@@ -1247,16 +1218,12 @@ app.get('/api/reminders', async (req, res) => {
   }
 })
 
-app.post('/api/reminders', async (req, res) => {
+app.post('/api/reminders', authenticateToken, validateRequest(validators.createReminderSchema), async (req, res) => {
   const { id_surat_masuk, tanggal_batas, keterangan } = req.body
-
-  if (!id_surat_masuk || !tanggal_batas) {
-    return res.status(400).json({ error: 'Field wajib tidak lengkap' })
-  }
 
   try {
     const newReminder = new Reminder({
-      id_surat_masuk,
+       id_surat_masuk,
       tanggal_batas: new Date(tanggal_batas),
       status: 'menunggu',
       keterangan: keterangan || null,
@@ -1269,13 +1236,9 @@ app.post('/api/reminders', async (req, res) => {
   }
 })
 
-app.patch('/api/reminders/:id', async (req, res) => {
+app.patch('/api/reminders/:id', authenticateToken, validateRequest(validators.updateReminderSchema), async (req, res) => {
   const { id } = req.params
   const { status } = req.body
-
-  if (!status || !['menunggu', 'selesai', 'terlewat'].includes(status)) {
-    return res.status(400).json({ error: 'Status tidak valid' })
-  }
 
   try {
     const updated = await Reminder.findByIdAndUpdate(id, { status }, { new: true })
