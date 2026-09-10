@@ -11,7 +11,9 @@ import jwt from 'jsonwebtoken'
 import cookieParser from 'cookie-parser'
 import helmet from 'helmet'
 import joi from 'joi'
+import logger from './server/logger.js'
 import * as validators from './server/validators.js'
+import { loginLimiter, otpLimiter, passwordResetLimiter, apiLimiter } from './server/rateLimiters.js'
 import { Role, Pengguna, FormatNomorSurat, TandaTanganDigital, SuratMasuk, SuratKeluar, Reminder, CustomFolder } from './models.js'
 
 dotenv.config()
@@ -30,6 +32,10 @@ app.use(helmet.contentSecurityPolicy({
     imgSrc: ["'self'", "data:", "https:"],
   }
 }))
+
+app.use(apiLimiter)
+
+logger.info('Server starting...', { env: process.env.NODE_ENV, timestamp: new Date().toISOString() })
 
 // ==========================================
 // JWT Utility Functions
@@ -207,10 +213,12 @@ const mongooseOptions = {
 
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/sisurat', mongooseOptions)
   .then(() => {
-    console.log('MongoDB connected')
+    logger.info('MongoDB connected successfully')
     initializeDefaultRoles()
   })
-  .catch(err => console.log('MongoDB connection error:', err))
+  .catch(err => {
+    logger.error('MongoDB connection error:', { error: err.message, stack: err.stack })
+  })
 
 const db = mongoose.connection
 
@@ -224,15 +232,12 @@ async function initializeDefaultRoles() {
         keterangan: 'Administrator sistem dengan akses penuh',
       })
       const savedRole = await newAdminRole.save()
-      console.log('✓ Role Admin berhasil dibuat')
-      console.log('  ID:', savedRole._id)
-      console.log('  Nama:', savedRole.nama_role)
+      logger.info('Role Admin berhasil dibuat', { roleId: savedRole._id })
     } else {
-      console.log('✓ Role Admin sudah ada')
-      console.log('  ID:', adminRole._id)
+      logger.info('Role Admin sudah ada', { roleId: adminRole._id })
     }
   } catch (error) {
-    console.error('Error initializing roles:', error.message)
+    logger.error('Error initializing roles:', { error: error.message, stack: error.stack })
   }
 }
 
@@ -312,18 +317,20 @@ async function sendOTP(username, email, otp, type = 'reset') {
   }
 }
 
-app.post('/api/login', validateRequest(validators.loginSchema), async (req, res) => {
+app.post('/api/login', loginLimiter, validateRequest(validators.loginSchema), async (req, res) => {
   const { username, password } = req.body
 
   try {
     const user = await Pengguna.findOne({ username, is_deleted: false }).populate('id_role')
 
     if (!user) {
+      logger.warn('Login attempt with non-existent username', { username, ip: req.ip })
       return res.status(404).json({ success: false, error: 'Username tidak terdaftar' })
     }
 
     const isPasswordValid = await user.comparePassword(password)
     if (!isPasswordValid) {
+      logger.warn('Login attempt with invalid password', { username, userId: user._id, ip: req.ip })
       return res.status(401).json({ success: false, error: 'Password salah' })
     }
 
@@ -332,6 +339,8 @@ app.post('/api/login', validateRequest(validators.loginSchema), async (req, res)
 
     res.cookie('accessToken', accessToken, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict' })
     res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict' })
+
+    logger.info('User login successful', { username, userId: user._id, role: user.id_role?.nama_role, ip: req.ip })
 
     res.json({
       success: true,
@@ -346,7 +355,7 @@ app.post('/api/login', validateRequest(validators.loginSchema), async (req, res)
       accessToken,
     })
   } catch (error) {
-    console.error('Error:', error)
+    logger.error('Login error:', { error: error.message, stack: error.stack, username, ip: req.ip })
     res.status(500).json({ success: false, error: 'Server error' })
   }
 })
@@ -369,7 +378,7 @@ app.post('/api/refresh-token', (req, res) => {
   res.json({ success: true, message: 'Token refreshed', accessToken })
 })
 
-app.post('/api/send-otp', validateRequest(validators.sendOtpSchema), async (req, res) => {
+app.post('/api/send-otp', otpLimiter, validateRequest(validators.sendOtpSchema), async (req, res) => {
   const { username } = req.body
 
   try {
@@ -397,7 +406,7 @@ app.post('/api/send-otp', validateRequest(validators.sendOtpSchema), async (req,
   }
 })
 
-app.post('/api/verify-otp', validateRequest(validators.verifyOtpSchema), (req, res) => {
+app.post('/api/verify-otp', otpLimiter, validateRequest(validators.verifyOtpSchema), (req, res) => {
   const { username, otp } = req.body
 
   const stored = otpStore.get(username)
@@ -419,7 +428,7 @@ app.post('/api/verify-otp', validateRequest(validators.verifyOtpSchema), (req, r
   res.json({ success: true, message: 'OTP terverifikasi', token: username })
 })
 
-app.post('/api/reset-password', validateRequest(validators.resetPasswordSchema), async (req, res) => {
+app.post('/api/reset-password', passwordResetLimiter, validateRequest(validators.resetPasswordSchema), async (req, res) => {
   const { username, newPassword } = req.body
 
   try {
@@ -446,6 +455,7 @@ app.post('/api/create-user', authenticateToken, verifyAdminRole, validateRequest
     const existingUser = await Pengguna.findOne({ username, is_deleted: false })
     
     if (existingUser) {
+      logger.warn('Create user failed: username already exists', { username, createdBy: req.userId })
       return res.status(400).json({ success: false, error: 'Username sudah terdaftar' })
     }
 
@@ -460,6 +470,8 @@ app.post('/api/create-user', authenticateToken, verifyAdminRole, validateRequest
 
     const savedUser = await newUser.save()
 
+    logger.info('User created successfully', { username, userId: savedUser._id, createdBy: req.userId })
+
     res.json({ 
       success: true, 
       message: 'Akun berhasil dibuat',
@@ -470,7 +482,7 @@ app.post('/api/create-user', authenticateToken, verifyAdminRole, validateRequest
       }
     })
   } catch (error) {
-    console.error('Error:', error)
+    logger.error('Create user error:', { error: error.message, stack: error.stack, username, createdBy: req.userId })
     res.status(500).json({ success: false, error: 'Server error' })
   }
 })
@@ -534,14 +546,17 @@ app.delete('/api/delete-user', authenticateToken, verifyAdminRole, validateReque
     const user = await Pengguna.findOne({ username, is_deleted: false })
     
     if (!user) {
+      logger.warn('Delete user failed: user not found', { username, deletedBy: req.userId })
       return res.status(404).json({ success: false, error: 'Username tidak ditemukan' })
     }
 
     await Pengguna.deleteOne({ _id: user._id })
 
+    logger.info('User deleted successfully', { username, userId: user._id, deletedBy: req.userId })
+
     res.json({ success: true, message: 'Akun berhasil dihapus' })
   } catch (error) {
-    console.error('Error:', error)
+    logger.error('Delete user error:', { error: error.message, stack: error.stack, username, deletedBy: req.userId })
     res.status(500).json({ success: false, error: 'Server error' })
   }
 })
