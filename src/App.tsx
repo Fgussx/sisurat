@@ -453,6 +453,10 @@ function LoginPage({
       setError("Username dan password wajib diisi.")
       return
     }
+    if (password.length < 8) {
+      setError("Password minimal 8 karakter")
+      return
+    }
     setLoading(true)
     try {
       const response = await fetch(`${API_BASE}/api/login`, {
@@ -757,6 +761,10 @@ function LupaPasswordPage({ onBack }: { onBack: () => void }) {
     e.preventDefault()
     if (!newPassword || !confirmPassword) {
       setError("Password baru wajib diisi")
+      return
+    }
+    if (newPassword.length < 8) {
+      setError("Password minimal 8 karakter")
       return
     }
     if (newPassword !== confirmPassword) {
@@ -1792,6 +1800,11 @@ function ModalTambahAkun({
       return
     }
 
+    if (password.length < 8) {
+      setError("Password minimal 8 karakter")
+      return
+    }
+
     setLoading(true)
     try {
       const response = await fetch(`${API_BASE}/api/create-user`, {
@@ -2202,6 +2215,10 @@ function ModalGantiPassword({
     setError("")
     if (!newPassword) {
       setError("Password baru wajib diisi")
+      return
+    }
+    if (newPassword.length < 8) {
+      setError("Password minimal 8 karakter")
       return
     }
     if (newPassword !== confirmPassword) {
