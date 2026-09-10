@@ -18,7 +18,7 @@ export function usePasswordValidation(password: string): PasswordValidationState
         isValid: false,
         isEmpty: true,
         message: '',
-        color: 'gray',
+        color: 'gray' as const,
         icon: '',
       }
     }
@@ -28,7 +28,7 @@ export function usePasswordValidation(password: string): PasswordValidationState
         isValid: true,
         isEmpty: false,
         message: 'Password valid',
-        color: 'green',
+        color: 'green' as const,
         icon: '✓',
       }
     }
@@ -37,13 +37,13 @@ export function usePasswordValidation(password: string): PasswordValidationState
       isValid: false,
       isEmpty: false,
       message: 'Minimal 8 karakter',
-      color: 'red',
+      color: 'red' as const,
       icon: '✗',
     }
   }, [password])
 }
 
-export function usePasswordMatch(password: string, confirmPassword: string) {
+export function usePasswordMatch(password: string, confirmPassword: string): PasswordValidationState {
   return useMemo(() => {
     const isEmpty = confirmPassword === '' || confirmPassword === undefined
     const isValid = password === confirmPassword && confirmPassword.length >= 8
@@ -53,7 +53,7 @@ export function usePasswordMatch(password: string, confirmPassword: string) {
         isValid: false,
         isEmpty: true,
         message: '',
-        color: 'gray',
+        color: 'gray' as const,
         icon: '',
       }
     }
@@ -63,7 +63,7 @@ export function usePasswordMatch(password: string, confirmPassword: string) {
         isValid: true,
         isEmpty: false,
         message: 'Password match',
-        color: 'green',
+        color: 'green' as const,
         icon: '✓',
       }
     }
@@ -72,7 +72,7 @@ export function usePasswordMatch(password: string, confirmPassword: string) {
       isValid: false,
       isEmpty: false,
       message: password.length < 8 ? 'Minimal 8 karakter' : 'Password tidak cocok',
-      color: 'red',
+      color: 'red' as const,
       icon: '✗',
     }
   }, [password, confirmPassword])

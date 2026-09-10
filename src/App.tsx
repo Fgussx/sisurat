@@ -694,6 +694,8 @@ function LupaPasswordPage({ onBack }: { onBack: () => void }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState(false)
+  const newPasswordValidation = usePasswordValidation(newPassword)
+  const confirmPasswordValidation = usePasswordMatch(newPassword, confirmPassword)
 
   const handleSendOTP = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -980,10 +982,10 @@ function LupaPasswordPage({ onBack }: { onBack: () => void }) {
                       className="w-full px-4 py-2.5 rounded-lg border border-slate-200 text-slate-900 text-sm placeholder-slate-400 outline-none transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                     />
                     <PasswordValidationLabel
-                      message={usePasswordValidation(newPassword).message}
-                      color={usePasswordValidation(newPassword).color}
-                      icon={usePasswordValidation(newPassword).icon}
-                      isEmpty={usePasswordValidation(newPassword).isEmpty}
+                      message={newPasswordValidation.message}
+                      color={newPasswordValidation.color}
+                      icon={newPasswordValidation.icon}
+                      isEmpty={newPasswordValidation.isEmpty}
                     />
                   </div>
                   <div>
@@ -998,10 +1000,10 @@ function LupaPasswordPage({ onBack }: { onBack: () => void }) {
                       className="w-full px-4 py-2.5 rounded-lg border border-slate-200 text-slate-900 text-sm placeholder-slate-400 outline-none transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                     />
                     <PasswordValidationLabel
-                      message={usePasswordMatch(newPassword, confirmPassword).message}
-                      color={usePasswordMatch(newPassword, confirmPassword).color}
-                      icon={usePasswordMatch(newPassword, confirmPassword).icon}
-                      isEmpty={usePasswordMatch(newPassword, confirmPassword).isEmpty}
+                      message={confirmPasswordValidation.message}
+                      color={confirmPasswordValidation.color}
+                      icon={confirmPasswordValidation.icon}
+                      isEmpty={confirmPasswordValidation.isEmpty}
                     />
                   </div>
                   {error && (
