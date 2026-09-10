@@ -1763,6 +1763,7 @@ function ModalTambahAkun({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [saved, setSaved] = useState(false)
+  const passwordValidation = usePasswordValidation(password)
 
   React.useEffect(() => {
     const fetchRoles = async () => {
@@ -1921,6 +1922,12 @@ function ModalTambahAkun({
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Masukkan password"
               className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-900 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all"
+            />
+            <PasswordValidationLabel
+              message={passwordValidation.message}
+              color={passwordValidation.color}
+              icon={passwordValidation.icon}
+              isEmpty={passwordValidation.isEmpty}
             />
           </div>
 
