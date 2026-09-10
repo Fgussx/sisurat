@@ -2187,6 +2187,8 @@ function ModalGantiPassword({
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
   const [saved, setSaved] = useState(false)
+  const newPasswordValidation = usePasswordValidation(newPassword)
+  const confirmPasswordValidation = usePasswordMatch(newPassword, confirmPassword)
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -2287,6 +2289,12 @@ function ModalGantiPassword({
                 <IconEye open={showPassword} />
               </button>
             </div>
+            <PasswordValidationLabel
+              message={newPasswordValidation.message}
+              color={newPasswordValidation.color}
+              icon={newPasswordValidation.icon}
+              isEmpty={newPasswordValidation.isEmpty}
+            />
           </div>
 
           <div>
@@ -2299,6 +2307,12 @@ function ModalGantiPassword({
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="Konfirmasi password baru"
               className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-900 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all"
+            />
+            <PasswordValidationLabel
+              message={confirmPasswordValidation.message}
+              color={confirmPasswordValidation.color}
+              icon={confirmPasswordValidation.icon}
+              isEmpty={confirmPasswordValidation.isEmpty}
             />
           </div>
 
