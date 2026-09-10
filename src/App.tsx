@@ -3,6 +3,8 @@ import logoSandya from "./assets/logo-sandya.png"
 import bubleSurat from "./assets/buble-surat.png"
 import bubleOrang from "./assets/orang.png"
 import { EditSuratPage } from "./EditSuratPage"
+import { usePasswordValidation, usePasswordMatch } from "./hooks/usePasswordValidation"
+import { PasswordValidationLabel } from "./components/PasswordValidationLabel"
 
 const API_BASE = `http://${window.location.hostname}:5000`
 
@@ -442,6 +444,7 @@ function LoginPage({
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+  const passwordValidation = usePasswordValidation(password)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -633,6 +636,12 @@ function LoginPage({
                     <IconEye open={showPassword} />
                   </button>
                 </div>
+                <PasswordValidationLabel
+                  message={passwordValidation.message}
+                  color={passwordValidation.color}
+                  icon={passwordValidation.icon}
+                  isEmpty={passwordValidation.isEmpty}
+                />
               </div>
 
               <div className="text-right">
@@ -970,6 +979,12 @@ function LupaPasswordPage({ onBack }: { onBack: () => void }) {
                       placeholder="Masukkan password baru"
                       className="w-full px-4 py-2.5 rounded-lg border border-slate-200 text-slate-900 text-sm placeholder-slate-400 outline-none transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                     />
+                    <PasswordValidationLabel
+                      message={usePasswordValidation(newPassword).message}
+                      color={usePasswordValidation(newPassword).color}
+                      icon={usePasswordValidation(newPassword).icon}
+                      isEmpty={usePasswordValidation(newPassword).isEmpty}
+                    />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1.5">
@@ -981,6 +996,12 @@ function LupaPasswordPage({ onBack }: { onBack: () => void }) {
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="Konfirmasi password baru"
                       className="w-full px-4 py-2.5 rounded-lg border border-slate-200 text-slate-900 text-sm placeholder-slate-400 outline-none transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    />
+                    <PasswordValidationLabel
+                      message={usePasswordMatch(newPassword, confirmPassword).message}
+                      color={usePasswordMatch(newPassword, confirmPassword).color}
+                      icon={usePasswordMatch(newPassword, confirmPassword).icon}
+                      isEmpty={usePasswordMatch(newPassword, confirmPassword).isEmpty}
                     />
                   </div>
                   {error && (
