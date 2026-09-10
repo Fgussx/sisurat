@@ -5,7 +5,11 @@ import { fileURLToPath } from "node:url"
 import { dirname, resolve } from "node:path"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const siteConfiguration = await import("./.figma/make/site.json", { with: { type: "json" } }).then(m => m.default)
+const siteConfiguration = {
+  description: "SiSurat - Sistem Manajemen Surat Digital",
+  robots: { index: false },
+  accessibility: { addBypassLinks: false, ignoreReducedMotion: false }
+}
 
 // Vite config — https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {

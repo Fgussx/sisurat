@@ -7,6 +7,8 @@ import multer from 'multer'
 import nodemailer from 'nodemailer'
 import dotenv from 'dotenv'
 import mongoose from 'mongoose'
+import jwt from 'jsonwebtoken'
+import cookieParser from 'cookie-parser'
 import { Role, Pengguna, FormatNomorSurat, TandaTanganDigital, SuratMasuk, SuratKeluar, Reminder, CustomFolder } from './models.js'
 
 dotenv.config()
@@ -15,6 +17,64 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const app = express()
 app.use(cors())
 app.use(express.json())
+app.use(cookieParser())
+
+// ==========================================
+// JWT Utility Functions
+// ==========================================
+function generateAccessToken(userId) {
+  return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '15m' })
+}
+
+function generateRefreshToken(userId) {
+  return jwt.sign({ userId }, process.env.JWT_REFRESH_SECRET, { expiresIn: '7d' })
+}
+
+function verifyAccessToken(token) {
+  try {
+    return jwt.verify(token, process.env.JWT_SECRET)
+  } catch (err) {
+    return null
+  }
+}
+
+function verifyRefreshToken(token) {
+  try {
+    return jwt.verify(token, process.env.JWT_REFRESH_SECRET)
+  } catch (err) {
+    return null
+  }
+}
+
+// Middleware: Verify JWT Token
+function authenticateToken(req, res, next) {
+  const token = req.cookies.accessToken || req.headers.authorization?.split(' ')[1]
+  
+  if (!token) {
+    return res.status(401).json({ success: false, error: 'Token tidak ditemukan' })
+  }
+
+  const decoded = verifyAccessToken(token)
+  if (!decoded) {
+    return res.status(401).json({ success: false, error: 'Token tidak valid atau sudah kadaluarsa' })
+  }
+
+  req.userId = decoded.userId
+  next()
+}
+
+// Middleware: Verify Admin Role
+async function verifyAdminRole(req, res, next) {
+  try {
+    const user = await Pengguna.findById(req.userId).populate('id_role')
+    if (!user || user.id_role.nama_role !== 'Admin') {
+      return res.status(403).json({ success: false, error: 'Akses ditolak: Admin saja' })
+    }
+    next()
+  } catch (err) {
+    res.status(500).json({ success: false, error: 'Server error' })
+  }
+}
 
 // File upload config
 const uploadDir = path.join(__dirname, 'uploads')
@@ -218,19 +278,26 @@ app.post('/api/login', async (req, res) => {
   const { username, password } = req.body
 
   if (!username || !password) {
-    return res.status(400).json({ error: 'Username dan password wajib diisi' })
+    return res.status(400).json({ success: false, error: 'Username dan password wajib diisi' })
   }
 
   try {
     const user = await Pengguna.findOne({ username, is_deleted: false }).populate('id_role')
 
     if (!user) {
-      return res.status(404).json({ error: 'Username tidak terdaftar' })
+      return res.status(404).json({ success: false, error: 'Username tidak terdaftar' })
     }
 
-    if (user.password !== password) {
-      return res.status(401).json({ error: 'Password salah' })
+    const isPasswordValid = await user.comparePassword(password)
+    if (!isPasswordValid) {
+      return res.status(401).json({ success: false, error: 'Password salah' })
     }
+
+    const accessToken = generateAccessToken(user._id)
+    const refreshToken = generateRefreshToken(user._id)
+
+    res.cookie('accessToken', accessToken, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict' })
+    res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict' })
 
     res.json({
       success: true,
@@ -242,11 +309,30 @@ app.post('/api/login', async (req, res) => {
         email: user.email,
         role: user.id_role ? user.id_role.nama_role : null,
       },
+      accessToken,
     })
   } catch (error) {
     console.error('Error:', error)
-    res.status(500).json({ error: 'Server error' })
+    res.status(500).json({ success: false, error: 'Server error' })
   }
+})
+
+app.post('/api/refresh-token', (req, res) => {
+  const refreshToken = req.cookies.refreshToken || req.body.refreshToken
+
+  if (!refreshToken) {
+    return res.status(401).json({ success: false, error: 'Refresh token tidak ditemukan' })
+  }
+
+  const decoded = verifyRefreshToken(refreshToken)
+  if (!decoded) {
+    return res.status(401).json({ success: false, error: 'Refresh token tidak valid atau sudah kadaluarsa' })
+  }
+
+  const accessToken = generateAccessToken(decoded.userId)
+  res.cookie('accessToken', accessToken, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict' })
+
+  res.json({ success: true, message: 'Token refreshed', accessToken })
 })
 
 app.post('/api/send-otp', async (req, res) => {
@@ -311,40 +397,46 @@ app.post('/api/reset-password', async (req, res) => {
   const { username, newPassword } = req.body
 
   if (!username || !newPassword) {
-    return res.status(400).json({ error: 'Username dan password baru wajib diisi' })
+    return res.status(400).json({ success: false, error: 'Username dan password baru wajib diisi' })
+  }
+
+  if (newPassword.length < 8) {
+    return res.status(400).json({ success: false, error: 'Password minimal 8 karakter' })
   }
 
   try {
     const user = await Pengguna.findOne({ username, is_deleted: false })
     
     if (!user) {
-      return res.status(404).json({ error: 'Username tidak terdaftar' })
+      return res.status(404).json({ success: false, error: 'Username tidak terdaftar' })
     }
 
-    await Pengguna.updateOne(
-      { _id: user._id },
-      { $set: { password: newPassword } }
-    )
+    user.password = newPassword
+    await user.save()
 
     res.json({ success: true, message: 'Password berhasil direset' })
   } catch (error) {
     console.error('Error:', error)
-    res.status(500).json({ error: 'Server error' })
+    res.status(500).json({ success: false, error: 'Server error' })
   }
 })
 
-app.post('/api/create-user', async (req, res) => {
+app.post('/api/create-user', authenticateToken, verifyAdminRole, async (req, res) => {
   const { username, password, nama, email, id_role } = req.body
 
   if (!username || !password || !nama || !email || !id_role) {
-    return res.status(400).json({ error: 'Username, password, nama, email, dan id_role wajib diisi' })
+    return res.status(400).json({ success: false, error: 'Username, password, nama, email, dan id_role wajib diisi' })
+  }
+
+  if (password.length < 8) {
+    return res.status(400).json({ success: false, error: 'Password minimal 8 karakter' })
   }
 
   try {
     const existingUser = await Pengguna.findOne({ username, is_deleted: false })
     
     if (existingUser) {
-      return res.status(400).json({ error: 'Username sudah terdaftar' })
+      return res.status(400).json({ success: false, error: 'Username sudah terdaftar' })
     }
 
     const newUser = new Pengguna({
@@ -369,7 +461,7 @@ app.post('/api/create-user', async (req, res) => {
     })
   } catch (error) {
     console.error('Error:', error)
-    res.status(500).json({ error: 'Server error' })
+    res.status(500).json({ success: false, error: 'Server error' })
   }
 })
 
@@ -415,28 +507,28 @@ app.post('/api/roles', async (req, res) => {
   }
 })
 
-app.get('/api/users', async (req, res) => {
+app.get('/api/users', authenticateToken, verifyAdminRole, async (req, res) => {
   try {
     const users = await Pengguna.find({ is_deleted: false }).populate('id_role')
     res.json({ success: true, users })
   } catch (error) {
     console.error('Error:', error)
-    res.status(500).json({ error: 'Server error' })
+    res.status(500).json({ success: false, error: 'Server error' })
   }
 })
 
-app.delete('/api/delete-user', async (req, res) => {
+app.delete('/api/delete-user', authenticateToken, verifyAdminRole, async (req, res) => {
   const { username } = req.body
 
   if (!username) {
-    return res.status(400).json({ error: 'Username wajib diisi' })
+    return res.status(400).json({ success: false, error: 'Username wajib diisi' })
   }
 
   try {
     const user = await Pengguna.findOne({ username, is_deleted: false })
     
     if (!user) {
-      return res.status(404).json({ error: 'Username tidak ditemukan' })
+      return res.status(404).json({ success: false, error: 'Username tidak ditemukan' })
     }
 
     await Pengguna.deleteOne({ _id: user._id })
@@ -444,33 +536,35 @@ app.delete('/api/delete-user', async (req, res) => {
     res.json({ success: true, message: 'Akun berhasil dihapus' })
   } catch (error) {
     console.error('Error:', error)
-    res.status(500).json({ error: 'Server error' })
+    res.status(500).json({ success: false, error: 'Server error' })
   }
 })
 
-app.post('/api/change-password', async (req, res) => {
+app.post('/api/change-password', authenticateToken, async (req, res) => {
   const { username, newPassword } = req.body
 
   if (!username || !newPassword) {
-    return res.status(400).json({ error: 'Username dan password baru wajib diisi' })
+    return res.status(400).json({ success: false, error: 'Username dan password baru wajib diisi' })
+  }
+
+  if (newPassword.length < 8) {
+    return res.status(400).json({ success: false, error: 'Password minimal 8 karakter' })
   }
 
   try {
     const user = await Pengguna.findOne({ username, is_deleted: false })
 
     if (!user) {
-      return res.status(404).json({ error: 'Username tidak ditemukan' })
+      return res.status(404).json({ success: false, error: 'Username tidak ditemukan' })
     }
 
-    await Pengguna.updateOne(
-      { _id: user._id },
-      { $set: { password: newPassword } }
-    )
+    user.password = newPassword
+    await user.save()
 
     res.json({ success: true, message: 'Password berhasil diganti' })
   } catch (error) {
     console.error('Error:', error)
-    res.status(500).json({ error: 'Server error' })
+    res.status(500).json({ success: false, error: 'Server error' })
   }
 })
 
