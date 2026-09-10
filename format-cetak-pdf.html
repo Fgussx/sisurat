@@ -136,7 +136,7 @@ li::marker { font-weight:700; }
     <div class="greeting">Hormat kami,<br>Sandya Networks</div>
         <img class="tanda-tangan-image" src="/src/assets/ttd.png" alt="tanda tangan">
         <div class="person">Ferry Dwi Leksono</div>
-    <div class="role">a.n. Kepala Kantor Layanan Pacitan</div>
+    <div class="role">Kepala Kantor Layanan Pacitan</div>
   </div>
 
 </section>
@@ -149,6 +149,7 @@ li::marker { font-weight:700; }
     const isiSurat = params.get('isi_surat');
     const tanggalKirim = params.get('tanggal_kirim');
     const tujuan = params.get('tujuan');
+    const fileFinalTtd = params.get('file_final_ttd');
 
     if (nomor) document.getElementById('nomor_surat').textContent = nomor;
     if (perihal) {
@@ -193,7 +194,16 @@ li::marker { font-weight:700; }
       document.getElementById('alamat_tujuan').innerHTML = `Yth. ${tujuan}`;
     }
 
-    setTimeout(() => window.print(), 500);
+    setTimeout(() => {
+      // TTD hanya tampil jika sudah disetujui (file_final_ttd ada & bukan object kosong)
+      const signatureEl = document.querySelector('.signature');
+      if (signatureEl) {
+        const hasTtd = fileFinalTtd && fileFinalTtd !== '{}' && fileFinalTtd !== 'null' && fileFinalTtd !== '""'
+        signatureEl.style.display = hasTtd ? 'block' : 'none';
+        console.log("TTD check:", fileFinalTtd, "→ show:", hasTtd)
+      }
+      window.print();
+    }, 500);
   }
 
   window.addEventListener('load', loadSuratData);

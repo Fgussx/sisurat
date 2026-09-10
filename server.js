@@ -902,7 +902,7 @@ app.post('/api/surat-keluar', async (req, res) => {
 
 app.patch('/api/surat-keluar/:id', async (req, res) => {
    const { id } = req.params
-   const { perihal, jenis_surat, isi_surat, kategori, folder, file_draft, nomor_surat, tujuan, tanggal_kirim } = req.body
+   const { perihal, jenis_surat, isi_surat, kategori, folder, file_draft, nomor_surat, tujuan, tanggal_kirim, file_final_ttd, id_ttd } = req.body
 
    if (!perihal) {
      return res.status(400).json({ error: 'Perihal wajib diisi' })
@@ -919,6 +919,8 @@ app.patch('/api/surat-keluar/:id', async (req, res) => {
       if (nomor_surat !== undefined && nomor_surat) updateData.nomor_surat = nomor_surat
       if (tujuan !== undefined && tujuan) updateData.tujuan = tujuan
       if (tanggal_kirim !== undefined && tanggal_kirim) updateData.tanggal_kirim = tanggal_kirim
+      if (file_final_ttd) updateData.file_final_ttd = file_final_ttd
+      if (id_ttd) updateData.id_ttd = id_ttd
 
       const updated = await SuratKeluar.findByIdAndUpdate(id, updateData, { new: true, runValidators: true })
      
@@ -1102,6 +1104,38 @@ app.delete('/api/custom-folders/:id', async (req, res) => {
       res.status(500).json({ error: 'Server error' })
     }
  })
+
+// ==========================================
+// Tanda Tangan Digital Endpoints
+// ==========================================
+
+app.get('/api/tanda-tangan', async (req, res) => {
+  try {
+    const ttdList = await TandaTanganDigital.find({ is_aktif: true })
+      .populate('id_user')
+    res.json({ success: true, data: ttdList })
+  } catch (error) {
+    console.error('Error:', error)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.post('/api/tanda-tangan', async (req, res) => {
+  const { id_user, file_ttd } = req.body
+
+  if (!id_user || !file_ttd) {
+    return res.status(400).json({ error: 'Field wajib tidak lengkap' })
+  }
+
+  try {
+    const newTtd = new TandaTanganDigital({ id_user, file_ttd, is_aktif: true })
+    const saved = await newTtd.save()
+    res.json({ success: true, data: saved })
+  } catch (error) {
+    console.error('Error:', error)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
 
 // ==========================================
 // Reminder Endpoints
