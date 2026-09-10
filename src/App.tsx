@@ -1236,7 +1236,7 @@ function Sidebar({
 }
 
 // ── Top Bar ──────────────────────────────────────────────────────────────────
-function TopBar({ title, subtitle }: { title: string; subtitle: string }) {
+function TopBar({ title, subtitle, onNavigate }: { title: string; subtitle: string; onNavigate?: (page: any, suratId?: string) => void }) {
   const saved = localStorage.getItem("userInfo")
   const avatar = saved ? JSON.parse(saved).avatar : "P"
   const [showDropdown, setShowDropdown] = useState(false)
@@ -1246,17 +1246,43 @@ function TopBar({ title, subtitle }: { title: string; subtitle: string }) {
   React.useEffect(() => {
     const fetchData = async () => {
       try {
-        const [masukRes, reminderRes] = await Promise.all([
-          fetch(`${API_BASE}/api/surat-masuk`),
-          fetch(`${API_BASE}/api/reminders`),
-        ])
-        const masuk = await masukRes.json()
-        const reminderData = await reminderRes.json()
-        if (masuk.success) {
-          const tindakLanjut = (masuk.data || []).filter((s: any) => s.status_tindak_lanjut === "iya")
-          setTindakLanjutList(tindakLanjut)
+        // Cek role user
+        const savedUser = localStorage.getItem("userInfo")
+        const userRole = savedUser ? JSON.parse(savedUser).role?.toLowerCase() : ""
+        const isKepala = userRole.includes("kepala")
+
+        if (isKepala) {
+          // Kepala: tampilkan surat keluar yang menunggu persetujuan
+          const keluarRes = await fetch(`${API_BASE}/api/surat-keluar`)
+          const keluarData = await keluarRes.json()
+          if (keluarData.success) {
+            const menunggu = (keluarData.data || []).filter((s: any) => s.status_approval === "menunggu")
+            setTindakLanjutList(menunggu)
+          }
+        } else {
+          // Staff/Admin: tampilkan surat masuk tindak lanjut yang belum selesai
+          const [masukRes, reminderRes] = await Promise.all([
+            fetch(`${API_BASE}/api/surat-masuk`),
+            fetch(`${API_BASE}/api/reminders`),
+          ])
+          const masuk = await masukRes.json()
+          const reminderData = await reminderRes.json()
+
+          const allReminders = reminderData.success ? reminderData.data || [] : []
+
+          if (masuk.success) {
+            const tindakLanjut = (masuk.data || []).filter((s: any) => {
+              if (s.status_tindak_lanjut !== "iya") return false
+              const reminder = allReminders.find((r: any) => {
+                const rSmId = typeof r.id_surat_masuk === 'object' ? r.id_surat_masuk?._id : r.id_surat_masuk
+                return rSmId === s._id
+              })
+              return !reminder || reminder.status !== "selesai"
+            })
+            setTindakLanjutList(tindakLanjut)
+          }
+          setReminders(allReminders)
         }
-        if (reminderData.success) setReminders(reminderData.data || [])
       } catch (err) {
         console.error("Error fetching bell data:", err)
       }
@@ -1272,18 +1298,25 @@ function TopBar({ title, subtitle }: { title: string; subtitle: string }) {
         <p className="text-slate-500 text-xs mt-0.5">{subtitle}</p>
       </div>
       <div className="flex items-center gap-3">
-        <button
-          onClick={() => setShowDropdown((v) => !v)}
-          className="relative w-9 h-9 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 transition-colors"
-          title={tindakLanjutList.length > 0 ? `${tindakLanjutList.length} surat tindak lanjut` : "Tidak ada notifikasi"}
-        >
-          <IconBell />
-          {tindakLanjutList.length > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center px-1">
-              {tindakLanjutList.length}
-            </span>
-          )}
-        </button>
+        {(() => {
+          const savedUser = localStorage.getItem("userInfo")
+          const userRole = savedUser ? JSON.parse(savedUser).role?.toLowerCase() : ""
+          const isKepala = userRole.includes("kepala")
+          return (
+            <button
+              onClick={() => setShowDropdown((v) => !v)}
+              className="relative w-9 h-9 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 transition-colors"
+              title={tindakLanjutList.length > 0 ? `${tindakLanjutList.length} ${isKepala ? 'surat menunggu persetujuan' : 'surat tindak lanjut'}` : "Tidak ada notifikasi"}
+            >
+              <IconBell />
+              {tindakLanjutList.length > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center px-1">
+                  {tindakLanjutList.length}
+                </span>
+              )}
+            </button>
+          )
+        })()}
         <div
           className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white"
           style={{ background: "#2563EB" }}
@@ -1296,45 +1329,89 @@ function TopBar({ title, subtitle }: { title: string; subtitle: string }) {
       {showDropdown && (
         <div className="absolute top-full right-0 mt-2 w-80 bg-white rounded-xl border border-slate-200 shadow-lg overflow-hidden z-50">
           <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-slate-900">Surat Tindak Lanjut</h3>
+            {(() => {
+              const savedUser = localStorage.getItem("userInfo")
+              const userRole = savedUser ? JSON.parse(savedUser).role?.toLowerCase() : ""
+              const isKepala = userRole.includes("kepala")
+              return (
+                <h3 className="text-sm font-semibold text-slate-900">
+                  {isKepala ? "Menunggu Persetujuan" : "Surat Tindak Lanjut"}
+                </h3>
+              )
+            })()}
             <button onClick={() => setShowDropdown(false)} className="text-slate-400 hover:text-slate-600 text-xs">✕</button>
           </div>
           {tindakLanjutList.length === 0 ? (
             <div className="px-5 py-6 text-center text-sm text-slate-400">
-              Tidak ada surat tindak lanjut
+              {(() => {
+                const savedUser = localStorage.getItem("userInfo")
+                const userRole = savedUser ? JSON.parse(savedUser).role?.toLowerCase() : ""
+                const isKepala = userRole.includes("kepala")
+                return isKepala ? "Tidak ada surat menunggu persetujuan" : "Tidak ada surat tindak lanjut"
+              })()}
             </div>
           ) : (
             <div className="max-h-64 overflow-y-auto divide-y divide-slate-50">
               {tindakLanjutList.map((s) => {
-                const reminder = reminders.find((r: any) => {
-                  const rSmId = typeof r.id_surat_masuk === 'object' ? r.id_surat_masuk?._id : r.id_surat_masuk
-                  return rSmId === s._id
-                })
-                const isDone = reminder && reminder.status === 'selesai'
-                const isOverdue = reminder && !isDone && new Date(reminder.tanggal_batas) < new Date()
-                const badge = isDone
-                  ? { icon: "✅", label: "Selesai", bg: "#ECFDF5", color: "#059669" }
-                  : isOverdue
-                    ? { icon: "⚠️", label: "Terlewat", bg: "#FEF2F2", color: "#DC2626" }
-                    : { icon: "⏳", label: "Menunggu", bg: "#FEF3C7", color: "#D97706" }
-                return (
-                  <div
-                    key={s._id}
-                    className="px-5 py-3 hover:bg-blue-50 transition-colors flex items-start gap-3"
-                  >
-                    <span className="text-xs mt-0.5">{badge.icon}</span>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-slate-800 truncate">{s.pengirim}</p>
-                      <p className="text-xs text-slate-500 truncate">{s.perihal}</p>
-                    </div>
-                    <span
-                      className="text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap flex-shrink-0"
-                      style={{ background: badge.bg, color: badge.color }}
+                // Cek role untuk tampilkan data berbeda
+                const savedUser = localStorage.getItem("userInfo")
+                const userRole = savedUser ? JSON.parse(savedUser).role?.toLowerCase() : ""
+                const isKepala = userRole.includes("kepala")
+
+                if (isKepala) {
+                  // Kepala: tampilkan data surat keluar (tujuan, perihal, status_approval)
+                  return (
+                    <div
+                      key={s._id}
+                      className="px-5 py-3 hover:bg-blue-50 transition-colors flex items-start gap-3 cursor-pointer"
+                      onClick={() => {
+                        setShowDropdown(false)
+                        onNavigate?.("surat-keluar", s._id)
+                      }}
                     >
-                      {badge.label}
-                    </span>
-                  </div>
-                )
+                      <span className="text-xs mt-0.5">⏳</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-slate-800 truncate">{s.tujuan}</p>
+                        <p className="text-xs text-slate-500 truncate">{s.perihal}</p>
+                      </div>
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap flex-shrink-0" style={{ background: "#FEF3C7", color: "#D97706" }}>
+                        Menunggu
+                      </span>
+                    </div>
+                  )
+                } else {
+                  // Staff/Admin: tampilkan data surat masuk (pengirim, perihal, reminder status)
+                  const reminder = reminders.find((r: any) => {
+                    const rSmId = typeof r.id_surat_masuk === 'object' ? r.id_surat_masuk?._id : r.id_surat_masuk
+                    return rSmId === s._id
+                  })
+                  const isDone = reminder && reminder.status === 'selesai'
+                  const isOverdue = reminder && !isDone && new Date(reminder.tanggal_batas) < new Date()
+                  const badge = isDone
+                    ? { icon: "✅", label: "Selesai", bg: "#ECFDF5", color: "#059669" }
+                    : isOverdue
+                      ? { icon: "⚠️", label: "Terlewat", bg: "#FEF2F2", color: "#DC2626" }
+                      : { icon: "⏳", label: "Menunggu", bg: "#FEF3C7", color: "#D97706" }
+                   return (
+                    <div
+                      key={s._id}
+                      className="px-5 py-3 hover:bg-blue-50 transition-colors flex items-start gap-3 cursor-pointer"
+                      onClick={() => {
+                        setShowDropdown(false)
+                        onNavigate?.("surat-masuk", s._id)
+                      }}
+                    >
+                      <span className="text-xs mt-0.5">{badge.icon}</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-slate-800 truncate">{s.pengirim}</p>
+                        <p className="text-xs text-slate-500 truncate">{s.perihal}</p>
+                      </div>
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap flex-shrink-0" style={{ background: badge.bg, color: badge.color }}>
+                        {badge.label}
+                      </span>
+                    </div>
+                   )
+                }
               })}
             </div>
           )}
@@ -2243,7 +2320,7 @@ function ModalGantiPassword({
 }
 
 // ── Dashboard ────────────────────────────────────────────────────────────────
-function Dashboard() {
+function Dashboard({ onNavigate }: { onNavigate?: (page: any, suratId?: string) => void }) {
   const [masukCount, setMasukCount] = useState(0)
   const [keluarCount, setKeluarCount] = useState(0)
 
@@ -2332,6 +2409,7 @@ function Dashboard() {
       <TopBar
         title="Dashboard"
         subtitle={subtitle}
+        onNavigate={onNavigate}
       />
 
       {/* Bell Dropdown sudah di TopBar */}
@@ -3245,7 +3323,7 @@ function ModalTambahSurat({
            ? `${API_BASE}/api/surat-masuk`
            : `${API_BASE}/api/surat-keluar`
         const body =
-          type === "masuk"
+           type === "masuk"
             ? {
                 id_user: getCurrentUserId(),
                 nomor_surat: nomorSurat,
@@ -3256,6 +3334,7 @@ function ModalTambahSurat({
                 kategori,
                 tanggal_terima: new Date(tanggal).toISOString(),
                 file_lampiran: fileLampiran,
+                jenis_surat: jenisSurat,
               }
              : {
                  id_user: getCurrentUserId(),
@@ -3860,8 +3939,140 @@ function ModalViewSurat({
   )
 }
 
+// ── Modal Preview Surat Keluar (Format Resmi) ───────────────────────────────
+function ModalPreviewSurat({
+  surat,
+  onClose,
+}: {
+  surat: any
+  onClose: () => void
+}) {
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return "-"
+    return new Date(dateStr).toLocaleDateString("id-ID", { year: "numeric", month: "long", day: "numeric" })
+  }
+
+  const handleCetak = () => {
+    const params = new URLSearchParams({
+      nomor_surat: surat.nomor_surat || '',
+      perihal: surat.perihal || '',
+      isi_surat: surat.isi_surat || '',
+      tanggal_kirim: surat.tanggal_kirim || '',
+      tujuan: surat.tujuan || '',
+      file_final_ttd: surat.id_ttd && surat.id_ttd.file_ttd ? JSON.stringify(surat.id_ttd.file_ttd) : '',
+    })
+    window.open(`format-cetak-pdf.html?${params.toString()}`, '_blank')
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: "rgba(15,23,42,0.5)", backdropFilter: "blur(2px)" }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div
+        className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"
+        style={{ fontFamily: "Inter, sans-serif" }}
+      >
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between flex-shrink-0">
+          <h2 className="text-base font-bold text-slate-900">Preview Surat Keluar</h2>
+          <button onClick={onClose} className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 transition-colors">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Preview Content - Format Resmi */}
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="mx-auto" style={{ maxWidth: "210mm", fontFamily: "'Times New Roman', Times, serif", color: "#111" }}>
+            {/* Logo + Company */}
+            <div className="flex justify-between items-start mb-8">
+              <img src="/src/assets/logo-sandya.png" alt="logo" className="h-16" />
+              <div className="text-right text-xs leading-relaxed">
+                <p className="font-bold text-sm tracking-wide">SANDYA NETWORKS KANTOR LAYANAN PACITAN</p>
+                <p>Jl. Jend. Sudirman No. 3, Bowongan, Arjowinangun, Kecamatan Pacitan</p>
+                <p>+62 811-8882-2525 | info@sandya.net | www.sandya.net</p>
+              </div>
+            </div>
+
+            {/* Meta: Nomor & Perihal */}
+            <div className="flex justify-between items-start mb-4">
+              <div className="space-y-1">
+                <div className="flex">
+                  <span className="w-20">Nomor</span>
+                  <span className="mr-1">:</span>
+                  <span className="font-normal">{surat.nomor_surat || "-"}</span>
+                </div>
+                <div className="flex">
+                  <span className="w-20">Perihal</span>
+                  <span className="mr-1">:</span>
+                  <span className="font-bold underline">{surat.perihal || "-"}</span>
+                </div>
+              </div>
+              <div className="text-sm">
+                Pacitan, {formatDate(surat.tanggal_kirim)}
+              </div>
+            </div>
+
+            {/* Tujuan */}
+            <div className="mb-4 text-sm">
+              Yth. {surat.tujuan || "-"}
+            </div>
+
+            {/* Salam */}
+            <div className="mb-4 text-sm">Dengan hormat,</div>
+
+            {/* Isi Surat */}
+            <div className="mb-6 text-sm leading-relaxed text-justify">
+              <p>{surat.isi_surat || "-"}</p>
+            </div>
+
+            {/* Tanda Tangan */}
+            {surat.id_ttd && surat.id_ttd.file_ttd && (
+              <div className="text-right text-sm mt-8">
+                <p className="mb-1">Hormat kami,</p>
+                <p className="mb-1">Sandya Networks</p>
+                <img
+                  src="/src/assets/ttd.png"
+                  alt="tanda tangan"
+                  className="h-16 ml-auto mb-1"
+                />
+                <p className="font-bold">Ferry Dwi Leksono</p>
+                <p>Kepala Kantor Layanan Pacitan</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Footer Buttons */}
+        <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-3 flex-shrink-0">
+          <button
+            onClick={handleCetak}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors hover:opacity-90"
+            style={{ background: "#8B5CF6" }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="6 9 6 2 18 2 18 9" />
+              <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+            </svg>
+            Cetak PDF
+          </button>
+          <button
+            onClick={onClose}
+            className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors"
+          >
+            Tutup
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Surat Masuk ──────────────────────────────────────────────────────────────
-function SuratMasuk({ onEditClick, onTindakLanjut, refreshTrigger }: { onEditClick?: (id: string) => void; onTindakLanjut?: (data: any) => void; refreshTrigger?: number }) {
+function SuratMasuk({ onEditClick, onTindakLanjut, refreshTrigger, initialDetailId, onNavigate }: { onEditClick?: (id: string) => void; onTindakLanjut?: (data: any) => void; refreshTrigger?: number; initialDetailId?: string | null; onNavigate?: (page: any, suratId?: string) => void }) {
    const [search, setSearch] = useState("")
    const [selectedFolder, setSelectedFolder] = useState("__all__")
    const [openDetailId, setOpenDetailId] = useState<string | null>(null)
@@ -3953,6 +4164,13 @@ function SuratMasuk({ onEditClick, onTindakLanjut, refreshTrigger }: { onEditCli
     fetchCustomFolders()
     fetchReminders()
   }, [refreshTrigger])
+
+  // Auto-open detail jika ada initialDetailId
+  React.useEffect(() => {
+    if (initialDetailId) {
+      setOpenDetailId(initialDetailId)
+    }
+  }, [initialDetailId])
 
     const monthData = data.filter((s) => inMonth(s.tanggal_terima, month))
    const folderColors = [
@@ -4205,6 +4423,7 @@ setDeletingSurat(false)
         <TopBar
           title="Surat Masuk"
           subtitle={`${data.length} surat terdaftar`}
+          onNavigate={onNavigate}
         />
       <div
         className="flex flex-1 overflow-hidden"
@@ -4305,7 +4524,7 @@ setDeletingSurat(false)
                <table className="w-full">
                  <thead>
                    <tr style={{ background: "#F8FAFC" }}>
-                      {["NO", "Tanggal", "Pengirim", "Perihal", "Kategori", "Aksi"].map(
+                       {["NO", "No Surat", "Tanggal", "Pengirim", "Perihal", "Kategori", "Aksi"].map(
                         (h) => (
                           <th
                             key={h}
@@ -4320,13 +4539,13 @@ setDeletingSurat(false)
                   <tbody>
                     {loading ? (
                       <tr>
-                        <td colSpan={6} className="px-6 py-8 text-center text-sm text-slate-500">
-                          Memuat data...
+                           <td colSpan={7} className="px-6 py-8 text-center text-sm text-slate-500">
+                           Memuat data...
                         </td>
                       </tr>
                     ) : filtered.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="px-6 py-8 text-center text-sm text-slate-500">
+                        <td colSpan={7} className="px-6 py-8 text-center text-sm text-slate-500">
                           Tidak ada surat masuk
                         </td>
                       </tr>
@@ -4352,6 +4571,11 @@ setDeletingSurat(false)
                             >
                               <td className="px-5 py-3.5 text-sm text-slate-600">
                                 {(page - 1) * PER_PAGE + paged.indexOf(s) + 1}
+                              </td>
+                              <td className="px-5 py-3.5">
+                                <span className="text-sm font-semibold text-slate-800" style={{ fontFamily: "JetBrains Mono, monospace" }}>
+                                  {s.nomor_surat}
+                                </span>
                               </td>
                               <td className="px-5 py-3.5 text-sm text-slate-600 whitespace-nowrap">
                                 {tanggalFormatted}
@@ -4410,11 +4634,11 @@ setDeletingSurat(false)
                                   }
                                 }}
                                >
-                                 <IconEye open={isOpen} />
+                                <IconEye open={isOpen} />
                                </button>
                                <button
-                                 onClick={() => {
-                                   const fileUrl = s.file_lampiran?.path ? `${window.location.origin}/api/file?nama=${encodeURIComponent(s.file_lampiran.path)}` : ''
+                                  onClick={() => {
+                                    const fileUrl = s.file_lampiran?.path ? `${window.location.origin}/api/file?nama=${encodeURIComponent(s.file_lampiran.path)}` : ''
                                    const message = `Surat Masuk\n\nNo: ${s.nomor_surat}\nDari: ${s.pengirim}\nPerihal: ${s.perihal}\n\nFile Lampiran:\n${fileUrl}`
                                    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank')
                                  }}
@@ -4436,7 +4660,7 @@ setDeletingSurat(false)
                               key={s._id + "-detail"}
                               style={{ background: "#F0F7FF" }}
                             >
-                              <td colSpan={6} className="px-6 pb-5 pt-0">
+                              <td colSpan={7} className="px-6 pb-5 pt-0">
                                 <div className="rounded-xl border border-blue-100 bg-white shadow-sm overflow-hidden">
                                   <div className="px-5 py-4 border-b border-slate-100">
                                     <p className="text-xs font-semibold text-blue-600 uppercase tracking-widest mb-1">
@@ -4544,16 +4768,34 @@ setDeletingSurat(false)
                                                Tandai Selesai
                                              </button>
                                            )}
-                                           {s.status_tindak_lanjut === "iya" && s.id_surat_keluar_ref && (
-                                             <button
-                                               onClick={() => setViewSurat({ type: "keluar", id: s.id_surat_keluar_ref?._id || s.id_surat_keluar_ref })}
-                                               className="text-xs font-medium px-2 py-1 rounded text-white transition-colors"
-                                               style={{ background: "#2563EB" }}
-                                               title="Lihat surat keluar terkait"
-                                             >
-                                               Lihat Surat Keluar →
-                                             </button>
-                                           )}
+                                            {s.status_tindak_lanjut === "iya" && s.id_surat_keluar_ref && (
+                                              <button
+                                                onClick={() => setViewSurat({ type: "keluar", id: s.id_surat_keluar_ref?._id || s.id_surat_keluar_ref })}
+                                                className="text-xs font-medium px-2 py-1 rounded text-white transition-colors"
+                                                style={{ background: "#2563EB" }}
+                                                title="Lihat surat keluar terkait"
+                                              >
+                                                Lihat Surat Keluar →
+                                              </button>
+                                            )}
+                                             {!s.id_surat_keluar_ref && (
+                                               <button
+                                                 onClick={() => {
+                                                   onTindakLanjut?.({
+                                                     tujuan: s.pengirim,
+                                                     perihal: `Re: ${s.perihal}`,
+                                                     isiSurat: s.isi_surat || "",
+                                                     kategori: s.kategori || "biasa",
+                                                     id_surat_masuk_ref: s._id,
+                                                   })
+                                                 }}
+                                                 className="text-xs font-medium px-2 py-1 rounded text-white transition-colors"
+                                                 style={{ background: "#8B5CF6" }}
+                                                 title="Buat surat balasan"
+                                               >
+                                                 Balas?
+                                               </button>
+                                             )}
                                          </div>
                                        </div>
                                     </div>
@@ -4605,7 +4847,7 @@ setDeletingSurat(false)
                                         )}
                                      </div>
 
-                                         <div className="px-5 py-4 border-t border-slate-50 flex gap-2">
+<div className="px-5 py-4 border-t border-slate-50 flex flex-wrap gap-1.5">
                                             <button
                                              disabled={false}
                                              onClick={() => onEditClick?.(s._id)}
@@ -4699,7 +4941,7 @@ setDeletingSurat(false)
 }
 
 // ── Surat Keluar (sementara disembunyikan) ────────────────────────────────────
-export function SuratKeluar({ onEditClick }: { onEditClick?: (id: string) => void }) {
+export function SuratKeluar({ onEditClick, initialDetailId }: { onEditClick?: (id: string) => void; initialDetailId?: string | null }) {
     const [search, setSearch] = useState("")
     const [selectedFolder, setSelectedFolder] = useState("__all__")
     const [openDetailId, setOpenDetailId] = useState<string | null>(null)
@@ -4709,6 +4951,15 @@ export function SuratKeluar({ onEditClick }: { onEditClick?: (id: string) => voi
     const [filterKategori, setFilterKategori] = useState("semua")
     const [month, setMonth] = useState(currentMonthKey)
     const [viewSurat, setViewSurat] = useState<{ type: "masuk" | "keluar"; id: string } | null>(null)
+    const [previewSuratId, setPreviewSuratId] = useState<string | null>(null)
+
+    // Auto-open detail jika ada initialDetailId
+    React.useEffect(() => {
+      if (initialDetailId) {
+        setOpenDetailId(initialDetailId)
+      }
+    }, [initialDetailId])
+    const [justApproved, setJustApproved] = useState<string | null>(null)
     const [reminders, setReminders] = useState<any[]>([])
    const [showAddFolder, setShowAddFolder] = useState(false)
    const [newFolderName, setNewFolderName] = useState("")
@@ -5126,7 +5377,7 @@ Apakah Anda yakin ingin menghapus surat dari "<strong>{deleteSuratConfirm.pihak}
               <table className="w-full">
                 <thead>
                   <tr style={{ background: "#F8FAFC" }}>
-                    {["NO", "Tanggal", "Tujuan", "Perihal", "Kategori", "Aksi"].map(
+                    {["NO", "No Surat", "Tanggal", "Tujuan", "Perihal", "Kategori", "Aksi"].map(
                       (h) => (
                         <th
                           key={h}
@@ -5141,15 +5392,15 @@ Apakah Anda yakin ingin menghapus surat dari "<strong>{deleteSuratConfirm.pihak}
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={6} className="px-6 py-8 text-center text-sm text-slate-500">
-                        Memuat data...
-                      </td>
+                       <td colSpan={7} className="px-6 py-8 text-center text-sm text-slate-500">
+                         Memuat data...
+                       </td>
                     </tr>
                   ) : filtered.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-6 py-8 text-center text-sm text-slate-500">
-                        Tidak ada surat keluar
-                      </td>
+                        <td colSpan={7} className="px-6 py-8 text-center text-sm text-slate-500">
+                          Tidak ada surat masuk
+                        </td>
                     </tr>
                   ) : (
                     paged.map((s) => {
@@ -5173,6 +5424,11 @@ Apakah Anda yakin ingin menghapus surat dari "<strong>{deleteSuratConfirm.pihak}
                           >
                             <td className="px-5 py-3.5 text-sm text-slate-600">
                               {(page - 1) * PER_PAGE + paged.indexOf(s) + 1}
+                            </td>
+                            <td className="px-5 py-3.5">
+                              <span className="text-sm font-semibold text-slate-800" style={{ fontFamily: "JetBrains Mono, monospace" }}>
+                                {s.nomor_surat}
+                              </span>
                             </td>
                             <td className="px-5 py-3.5 text-sm text-slate-600 whitespace-nowrap">
                               {tanggalFormatted}
@@ -5229,88 +5485,116 @@ Apakah Anda yakin ingin menghapus surat dari "<strong>{deleteSuratConfirm.pihak}
                                       "#94A3B8"
                                   }
                                 }}
-                              >
+                               >
                                 <IconEye open={isOpen} />
-                              </button>
-                              <button
-                                onClick={() => {
-                                  const params = new URLSearchParams({
-                                    nomor_surat: s.nomor_surat || '',
-                                    perihal: s.perihal || '',
-                                    isi_surat: s.isi_surat || '',
-                                    tanggal_kirim: s.tanggal_kirim || '',
-                                    tujuan: s.tujuan || '',
-                                  })
-                                  const printUrl = `${window.location.origin}/format-cetak-pdf.html?${params.toString()}`
-                                   const message = `Surat Keluar\n\nNo: ${s.nomor_surat}\nPenerima: ${s.tujuan}\nPerihal: ${s.perihal}\n\nCetak/PDF:\n${printUrl}`
-                                   window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank')
-                                 }}
-                                 title="Kirim via WhatsApp"
+                                </button>
+                                <button
+                                  onClick={() => setPreviewSuratId(s._id)}
+                                  title="Preview Surat"
+                                  className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
+                                  style={{ background: "transparent", color: "#94A3B8", border: "1px solid #E2E8F0" }}
+                                  onMouseEnter={(e) => { ;(e.currentTarget as HTMLElement).style.background = "#F0FDF4"; ;(e.currentTarget as HTMLElement).style.color = "#8B5CF6" }}
+                                  onMouseLeave={(e) => { ;(e.currentTarget as HTMLElement).style.background = "transparent"; ;(e.currentTarget as HTMLElement).style.color = "#94A3B8" }}
+                                >
+                                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <circle cx="12" cy="12" r="10" />
+                                    <line x1="12" y1="16" x2="12" y2="12" />
+                                    <line x1="12" y1="8" x2="12.01" y2="8" />
+                                  </svg>
+                                </button>
+                               <button
+                                  onClick={() => {
+                                    const params = new URLSearchParams({
+                                      nomor_surat: s.nomor_surat || '',
+                                      perihal: s.perihal || '',
+                                      isi_surat: s.isi_surat || '',
+                                      tanggal_kirim: s.tanggal_kirim || '',
+                                      tujuan: s.tujuan || '',
+                                    })
+                                    const printUrl = `${window.location.origin}/format-cetak-pdf.html?${params.toString()}`
+                                    const message = `Surat Keluar\n\nNo: ${s.nomor_surat}\nPenerima: ${s.tujuan}\nPerihal: ${s.perihal}\n\nCetak/PDF:\n${printUrl}`
+                                    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank')
+                                  }}
+                                  title="Kirim via WhatsApp"
                                  className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
-                                 style={{
-                                   background: "transparent",
-                                   color: "#94A3B8",
-                                   border: "1px solid #E2E8F0",
-                                 }}
-                                 onMouseEnter={(e) => {
-                                   ;(e.currentTarget as HTMLElement).style.background = "#F0FDF4"
-                                   ;(e.currentTarget as HTMLElement).style.color = "#25D366"
-                                 }}
-                                 onMouseLeave={(e) => {
-                                   ;(e.currentTarget as HTMLElement).style.background = "transparent"
-                                   ;(e.currentTarget as HTMLElement).style.color = "#94A3B8"
-                                 }}
+                                 style={{ background: "transparent", color: "#94A3B8", border: "1px solid #E2E8F0" }}
+                                 onMouseEnter={(e) => { ;(e.currentTarget as HTMLElement).style.background = "#F0FDF4"; ;(e.currentTarget as HTMLElement).style.color = "#25D366" }}
+                                 onMouseLeave={(e) => { ;(e.currentTarget as HTMLElement).style.background = "transparent"; ;(e.currentTarget as HTMLElement).style.color = "#94A3B8" }}
                                >
                                  <svg width="16" height="16" viewBox="0 0 24 24" fill="#25D366">
                                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.67-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.076 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421-7.403h-.004a9.87 9.87 0 00-4.869 1.171L2.98 2.757l1.298 4.86a9.861 9.861 0 00-1.512 5.338c0 5.455 4.437 9.884 9.888 9.884 2.64 0 5.122-1.03 6.988-2.898 1.866-1.869 2.965-4.35 2.965-6.986 0-5.447-4.437-9.889-9.888-9.889zm-5.666-3.133c-.162 0-.322-.015-.483-.046-.345-.071-.678-.204-.97-.389a2.084 2.084 0 01-.74-.74c-.185-.292-.318-.625-.389-.97A5.72 5.72 0 014.84 10.5c0-3.14 2.55-5.69 5.69-5.69 1.52 0 2.95.6 4.03 1.67a5.66 5.66 0 011.67 4.03c-.003 3.14-2.553 5.693-5.69 5.69z"/>
                                  </svg>
                                </button>
-                               {s.id_surat_masuk_ref && (() => {
-                                  const smId = s.id_surat_masuk_ref?._id || s.id_surat_masuk_ref
-                                  const reminder = reminders.find((r: any) => {
-                                    const rSmId = typeof r.id_surat_masuk === 'object' ? r.id_surat_masuk?._id : r.id_surat_masuk
-                                    return rSmId === smId
-                                  })
-                                  const isDone = reminder && reminder.status === 'selesai'
-                                   return (
-                                     <button
-                                       onClick={async () => {
-                                         try {
-                                           const smId = s.id_surat_masuk_ref?._id || s.id_surat_masuk_ref
-                                           // 1. Update reminder → selesai
-                                           if (reminder) {
-                                             await fetch(`${API_BASE}/api/reminders/${reminder._id}`, {
-                                               method: "PATCH",
-                                               headers: { "Content-Type": "application/json" },
-                                               body: JSON.stringify({ status: "selesai" }),
-                                             })
+                                  {(() => {
+                                    const smId = s.id_surat_masuk_ref?._id || s.id_surat_masuk_ref
+                                    const reminder = reminders.find((r: any) => {
+                                      const rSmId = typeof r.id_surat_masuk === 'object' ? r.id_surat_masuk?._id : r.id_surat_masuk
+                                      return rSmId === smId
+                                    })
+                                     const isDone = justApproved === s._id || s.id_ttd || (reminder && reminder.status === 'selesai')
+                                    // Cek role - hanya Kepala yang bisa tandai selesai
+                                    const savedUser = localStorage.getItem("userInfo")
+                                    const isKepala = savedUser ? JSON.parse(savedUser).role?.toLowerCase().includes("kepala") : false
+                                    if (!isKepala) return null
+                                     return (
+                                       <button
+                                         onClick={async () => {
+                                           try {
+                                             console.log("Approving surat keluar:", s._id, "perihal:", s.perihal)
+                                             // 1. Update reminder → selesai (jika ada)
+                                             if (reminder) {
+                                               await fetch(`${API_BASE}/api/reminders/${reminder._id}`, {
+                                                 method: "PATCH",
+                                                 headers: { "Content-Type": "application/json" },
+                                                 body: JSON.stringify({ status: "selesai" }),
+                                               })
+                                             }
+                                             // 2. Update surat masuk → tindak_lanjut: "iya" (hanya jika ada ref)
+                                             if (smId) {
+                                               await fetch(`${API_BASE}/api/surat-masuk/${smId}/status`, {
+                                                 method: "PATCH",
+                                                 headers: { "Content-Type": "application/json" },
+                                                 body: JSON.stringify({ status_tindak_lanjut: "iya" }),
+                                               })
+                                             }
+                                             // 3. Fetch TTD aktif
+                                             const ttdRes = await fetch(`${API_BASE}/api/tanda-tangan`)
+                                             const ttdData = await ttdRes.json()
+                                             const ttd = ttdData.data?.find((t: any) => t.is_aktif)
+                                             // 4. Link TTD ke surat keluar via id_ttd
+                                             if (ttd) {
+                                               const patchRes = await fetch(`${API_BASE}/api/surat-keluar/${s._id}`, {
+                                                 method: "PATCH",
+                                                 headers: { "Content-Type": "application/json" },
+                                                 body: JSON.stringify({
+                                                   perihal: s.perihal || "Tidak ada perihal",
+                                                   id_ttd: ttd._id,
+                                                 }),
+                                               })
+                                               console.log("PATCH surat-keluar:", patchRes.status)
+                                             }
+                                             // 5. Langsung update UI
+                                             setJustApproved(s._id)
+                                             fetchReminders()
+                                             fetchData()
+                                           } catch (err) {
+                                             console.error("Error completing reminder:", err)
                                            }
-                                           // 2. Update surat masuk → tindak_lanjut: "iya"
-                                           await fetch(`${API_BASE}/api/surat-masuk/${smId}/status`, {
-                                             method: "PATCH",
-                                             headers: { "Content-Type": "application/json" },
-                                             body: JSON.stringify({ status_tindak_lanjut: "iya" }),
-                                           })
-                                           fetchReminders()
-                                           fetchData()
-                                         } catch (err) {
-                                           console.error("Error completing reminder:", err)
-                                         }
-                                       }}
-                                       className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold transition-colors"
-                                       style={{
-                                         background: isDone ? "#F1F5F9" : "#ECFDF5",
-                                         color: isDone ? "#94A3B8" : "#059669",
-                                         border: isDone ? "1px solid #E2E8F0" : "1px solid #A7F3D0",
-                                         cursor: isDone ? "default" : "pointer",
-                                       }}
-                                       title={isDone ? "Sudah selesai" : "Tandai selesai"}
-                                       disabled={isDone}
-                                     >
-                                       {isDone ? "✓" : "○"}
-                                     </button>
-                                   )
-                                })()}
+                                         }}
+                                         className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold transition-colors"
+                                         style={{
+                                           background: isDone ? "#F1F5F9" : "#ECFDF5",
+                                           color: isDone ? "#94A3B8" : "#059669",
+                                           border: isDone ? "1px solid #E2E8F0" : "1px solid #A7F3D0",
+                                           cursor: isDone ? "default" : "pointer",
+                                         }}
+                                         title={isDone ? "Sudah disetujui" : "Setujui surat ini"}
+                                         disabled={isDone}
+                                       >
+                                         {isDone ? "✓" : "○"}
+                                       </button>
+                                     )
+                                  })()}
                              </td>
                           </tr>
                           {isOpen && (
@@ -5318,7 +5602,7 @@ Apakah Anda yakin ingin menghapus surat dari "<strong>{deleteSuratConfirm.pihak}
                               key={s._id + "-detail"}
                               style={{ background: "#F0FFF8" }}
                             >
-                              <td colSpan={6} className="px-6 pb-5 pt-0">
+                              <td colSpan={7} className="px-6 pb-5 pt-0">
                                 <div className="rounded-xl border border-green-100 bg-white shadow-sm overflow-hidden">
                                   <div className="px-5 py-4 border-b border-slate-100 flex items-start justify-between gap-4">
                                     <div className="min-w-0">
@@ -5427,7 +5711,7 @@ Apakah Anda yakin ingin menghapus surat dari "<strong>{deleteSuratConfirm.pihak}
                                       </div>
                                     )}
 
-<div className="px-5 py-4 border-t border-slate-50 flex gap-2">
+<div className="px-5 py-4 border-t border-slate-50 flex flex-wrap gap-1.5">
                                         <button
                                           onClick={() => {
                                             const params = new URLSearchParams({
@@ -5436,6 +5720,7 @@ Apakah Anda yakin ingin menghapus surat dari "<strong>{deleteSuratConfirm.pihak}
                                               isi_surat: s.isi_surat || '',
                                               tanggal_kirim: s.tanggal_kirim || '',
                                               tujuan: s.tujuan || '',
+                                              file_final_ttd: s.id_ttd && s.id_ttd.file_ttd ? JSON.stringify(s.id_ttd.file_ttd) : '',
                                             })
                                             window.open(`format-cetak-pdf.html?${params.toString()}`, '_blank')
                                           }}
@@ -5589,6 +5874,11 @@ Apakah Anda yakin ingin menghapus surat dari "<strong>{deleteSuratConfirm.pihak}
         onClose={() => setViewSurat(null)}
       />
     )}
+    {previewSuratId && (() => {
+      const surat = data.find((s: any) => s._id === previewSuratId)
+      if (!surat) return null
+      return <ModalPreviewSurat surat={surat} onClose={() => setPreviewSuratId(null)} />
+    })()}
     </>
   )
 }
@@ -6192,6 +6482,7 @@ export default function App() {
   // State untuk tindak lanjut
   const [tindakLanjutData, setTindakLanjutData] = useState<any>(null)
   const [suratMasukRefresh, setSuratMasukRefresh] = useState(0)
+  const [openSuratId, setOpenSuratId] = useState<string | null>(null)
   
   // Show sidebar on mount
   React.useEffect(() => {
@@ -6235,8 +6526,13 @@ export default function App() {
     localStorage.removeItem("userInfo")
   }
 
-  const handlePageChange = (newPage: Page) => {
+  const handlePageChange = (newPage: Page, suratId?: string) => {
     setPage(newPage)
+    if (suratId) {
+      setOpenSuratId(suratId)
+    } else {
+      setOpenSuratId(null)
+    }
     if (authed) {
       localStorage.setItem("currentPage", newPage)
     }
@@ -6301,13 +6597,15 @@ export default function App() {
         />
       ) : (
         <>
-          {page === "dashboard" && <Dashboard />}
+          {page === "dashboard" && <Dashboard onNavigate={handlePageChange} />}
           {page === "surat-masuk" && <SuratMasuk
             onEditClick={(id) => { setEditSuratType("masuk"); setEditSuratId(id); setPage("edit-surat"); }}
             onTindakLanjut={(data) => { setTindakLanjutData(data); setPage("tambah-surat-keluar"); }}
             refreshTrigger={suratMasukRefresh}
+            initialDetailId={openSuratId}
+            onNavigate={handlePageChange}
           />}
-          {page === "surat-keluar" && <SuratKeluar onEditClick={(id) => { setEditSuratType("keluar"); setEditSuratId(id); setPage("edit-surat"); }} />}
+          {page === "surat-keluar" && <SuratKeluar onEditClick={(id) => { setEditSuratType("keluar"); setEditSuratId(id); setPage("edit-surat"); }} initialDetailId={openSuratId} />}
           {page === "manajemen-akun" && <ManajemenAkun />}
           {page === "master-data" && <KelolaData />}
         </>
