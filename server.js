@@ -163,7 +163,7 @@ app.post('/api/upload', (req, res) => {
   })
 })
 
-// Connect to MongoDB
+// Connect to MongoDB (cached for Vercel serverless)
 const mongooseOptions = {
   serverSelectionTimeoutMS: 30000,
   socketTimeoutMS: 30000,
@@ -176,14 +176,26 @@ const mongooseOptions = {
   serverApi: { version: '1', strict: true, deprecationErrors: true },
 }
 
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/sisurat', mongooseOptions)
-  .then(() => {
+let cached = global.mongoose
+if (!cached) cached = global.mongoose = { conn: null, promise: null }
+
+async function connectDB() {
+  if (cached.conn) return cached.conn
+  if (!cached.promise) {
+    cached.promise = mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/sisurat', mongooseOptions)
+      .then((m) => m)
+  }
+  try {
+    cached.conn = await cached.promise
     logger.info('MongoDB connected successfully')
     initializeDefaultRoles()
-  })
-  .catch(err => {
+  } catch (err) {
     logger.error('MongoDB connection error:', { error: err.message, stack: err.stack })
-  })
+  }
+  return cached.conn
+}
+
+connectDB()
 
 const db = mongoose.connection
 
@@ -1272,19 +1284,29 @@ app.post('/api/migrate/isi-surat', async (req, res) => {
 
 const PORT = process.env.PORT || 5000
 
-app.use(express.static(path.join(__dirname, 'dist')))
+if (process.env.VERCEL !== '1') {
+  app.use(express.static(path.join(__dirname, 'dist')))
 
-// Serve print-pdf page
-app.get('/print-pdf', (req, res) => {
-  res.sendFile(path.join(__dirname, 'dist', 'index.html'))
-})
+  // Serve print-pdf page
+  app.get('/print-pdf', (req, res) => {
+    res.sendFile(path.join(__dirname, 'dist', 'index.html'))
+  })
 
-app.use((req, res, next) => {
-  if (req.method === 'GET' && !req.path.startsWith('/api')) {
-    return res.sendFile(path.join(__dirname, 'dist', 'index.html'))
-  }
-  next()
-})
+  app.use((req, res, next) => {
+    if (req.method === 'GET' && !req.path.startsWith('/api')) {
+      return res.sendFile(path.join(__dirname, 'dist', 'index.html'))
+    }
+    next()
+  })
+}
+
+// Ensure DB connection on every request (Vercel serverless)
+if (process.env.VERCEL === '1') {
+  app.use(async (req, res, next) => {
+    await connectDB()
+    next()
+  })
+}
 
 if (process.env.VERCEL !== '1') {
   app.listen(PORT, () => {
