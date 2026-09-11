@@ -2,6 +2,7 @@ import React, { useState } from "react"
 import logoSandya from "./assets/logo-sandya.png"
 import bubleSurat from "./assets/buble-surat.png"
 import bubleOrang from "./assets/orang.png"
+import ttdImage from "./assets/ttd.png"
 import { EditSuratPage } from "./EditSuratPage"
 import { usePasswordValidation, usePasswordMatch } from "./hooks/usePasswordValidation"
 import { PasswordValidationLabel } from "./components/PasswordValidationLabel"
@@ -4059,7 +4060,7 @@ function ModalPreviewSurat({
           <div className="mx-auto" style={{ maxWidth: "210mm", fontFamily: "'Times New Roman', Times, serif", color: "#111" }}>
             {/* Logo + Company */}
             <div className="flex justify-between items-start mb-8">
-              <img src="/src/assets/logo-sandya.png" alt="logo" className="h-16" />
+              <img src={logoSandya} alt="logo" className="h-16" />
               <div className="text-right text-xs leading-relaxed">
                 <p className="font-bold text-sm tracking-wide">SANDYA NETWORKS KANTOR LAYANAN PACITAN</p>
                 <p>Jl. Jend. Sudirman No. 3, Bowongan, Arjowinangun, Kecamatan Pacitan</p>
@@ -4105,7 +4106,7 @@ function ModalPreviewSurat({
                 <p className="mb-1">Hormat kami,</p>
                 <p className="mb-1">Sandya Networks</p>
                 <img
-                  src="/src/assets/ttd.png"
+                  src={ttdImage}
                   alt="tanda tangan"
                   className="h-16 ml-auto mb-1"
                 />

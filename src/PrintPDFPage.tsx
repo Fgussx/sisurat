@@ -169,7 +169,7 @@ export function PrintPDFPage() {
       </head>
       <body>
         <section className="sheet">
-          <img className="logo" src="/src/assets/logo-sandya.png" alt="logo" />
+          <img className="logo" src="/logo-sandya.png" alt="logo" />
           <div className="company">
             <div className="name">SANDYA NETWORKS KANTOR LAYANAN PACITAN</div>
             <div className="line">Jl. Jend. Sudirman No. 3, Bowongan, Arjowinangun, Kecamatan Pacitan</div>
@@ -205,7 +205,7 @@ export function PrintPDFPage() {
               <br />
               Sandya Networks
             </div>
-            <img className="tanda-tangan-image" src="/src/assets/ttd.png" alt="tanda tangan" />
+            <img className="tanda-tangan-image" src="/ttd.png" alt="tanda tangan" />
             <div className="person">Ferry Dwi Leksono</div>
             <div className="role">a.n. Kepala Kantor Layanan Pacitan</div>
           </div>
