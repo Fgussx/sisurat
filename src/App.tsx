@@ -483,13 +483,16 @@ function LoginPage({
       style={{ fontFamily: "Inter, sans-serif", background: "#F5F5F5" }}
     >
       <div
-        className="flex w-full max-w-6xl rounded-3xl shadow-2xl overflow-hidden"
-        style={{ background: "white" }}
+        className="flex w-full max-w-6xl rounded-3xl overflow-hidden border border-slate-200"
+        style={{
+          background: "white",
+          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.02)",
+        }}
       >
         {/* Left panel dengan branding */}
         <div
           className="hidden lg:flex flex-col justify-between w-1/2 flex-shrink-0 p-12"
-          style={{ background: "#F5F5F5", borderRight: "1px solid #E0E0E0" }}
+          style={{ background: "linear-gradient(135deg, #F0F4FF, #F5F5F5)" }}
         >
           <div>
             <div className="flex items-center gap-2">
@@ -520,6 +523,9 @@ function LoginPage({
                 SiSurat
               </span>
             </div>
+            <p className="text-sm mt-3" style={{ color: "#64748B", lineHeight: "1.6" }}>
+              Sistem Manajemen Surat Digital
+            </p>
           </div>
 
           <div className="flex flex-col items-center justify-center flex-1">
@@ -576,18 +582,21 @@ function LoginPage({
           <div className="w-full max-w-sm">
             <div className="mb-8">
               <h2
-                className="text-4xl font-bold mb-1"
+                className="text-2xl font-bold mb-1"
                 style={{ color: "#0F172A" }}
               >
                 Login
               </h2>
+              <p className="text-sm" style={{ color: "#64748B" }}>
+                Masuk ke akun Anda
+              </p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label
                   className="block text-sm font-medium mb-2"
-                  style={{ color: "#0F172A" }}
+                  style={{ color: "#334155" }}
                 >
                   Username
                 </label>
@@ -596,10 +605,10 @@ function LoginPage({
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="Masukkan username"
-                  className="w-full px-4 py-3 rounded-lg border text-slate-900 text-sm placeholder-gray-400 outline-none transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                  className="w-full px-4 py-3 rounded-xl border text-slate-900 text-sm placeholder-gray-400 outline-none transition-all duration-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 shadow-sm"
                   style={{
                     fontFamily: "Inter, sans-serif",
-                    borderColor: "#E0E0E0",
+                    borderColor: "#E2E8F0",
                     background: "white",
                   }}
                 />
@@ -607,7 +616,7 @@ function LoginPage({
               <div>
                 <label
                   className="block text-sm font-medium mb-2"
-                  style={{ color: "#0F172A" }}
+                  style={{ color: "#334155" }}
                 >
                   Password
                 </label>
@@ -617,17 +626,17 @@ function LoginPage({
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Masukkan password"
-                    className="w-full px-4 py-3 rounded-lg border text-slate-900 text-sm placeholder-gray-400 outline-none transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-200 pr-12"
+                    className="w-full px-4 py-3 rounded-xl border text-slate-900 text-sm placeholder-gray-400 outline-none transition-all duration-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 pr-12 shadow-sm"
                     style={{
                       fontFamily: "Inter, sans-serif",
-                      borderColor: "#E0E0E0",
+                      borderColor: "#E2E8F0",
                       background: "white",
                     }}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword((s) => !s)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center w-7 h-7 rounded-md transition-colors"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center w-7 h-7 rounded-md transition-colors duration-200"
                     style={{ color: "#94A3B8" }}
                     title={showPassword ? "Sembunyikan password" : "Lihat password"}
                     onMouseEnter={(e) =>
@@ -652,25 +661,25 @@ function LoginPage({
                 <button
                   type="button"
                   onClick={onLupaPassword}
-                  className="text-sm font-medium transition-colors"
-                  style={{ color: "#0078D4" }}
+                  className="text-sm font-medium transition-colors duration-200"
+                  style={{ color: "#2563EB" }}
                 >
                   Lupa Password?
                 </button>
               </div>
 
               {error && (
-                <div className="flex items-center gap-2 px-4 py-3 rounded-lg bg-red-50 border border-red-300">
-                  <span className="text-red-700 text-sm">{error}</span>
+                <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-red-50 border border-red-200">
+                  <span className="text-red-600 text-sm">{error}</span>
                 </div>
               )}
 
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 rounded-lg font-bold text-white text-base transition-all"
+                className="w-full py-3 rounded-xl font-semibold text-white text-sm transition-all duration-200 shadow-md hover:shadow-lg hover:scale-[1.01] active:scale-[0.99]"
                 style={{
-                  background: loading ? "#5B9BD5" : "#0078D4",
+                  background: loading ? "#93C5FD" : "linear-gradient(135deg, #2563EB, #1D4ED8)",
                   cursor: loading ? "not-allowed" : "pointer",
                 }}
               >
@@ -678,7 +687,7 @@ function LoginPage({
               </button>
             </form>
 
-            <p className="text-center text-xs mt-6" style={{ color: "#999" }}>
+            <p className="text-center text-xs mt-8 pt-6" style={{ color: "#94A3B8", borderTop: "1px solid #F1F5F9" }}>
               © 2024 SiSurat — Sistem Manajemen Surat Digital
             </p>
           </div>
