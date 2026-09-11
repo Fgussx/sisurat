@@ -480,40 +480,40 @@ function LoginPage({
   return (
     <div
       className="min-h-screen flex items-center justify-center p-6"
-      style={{ fontFamily: "Inter, sans-serif", background: "#F5F5F5" }}
+      style={{ fontFamily: "Inter, sans-serif", background: "#0F172A" }}
     >
       <div
-        className="flex w-full max-w-6xl rounded-3xl overflow-hidden border border-slate-200"
+        className="flex w-full max-w-6xl rounded-3xl overflow-hidden border border-slate-700"
         style={{
           background: "white",
-          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.02)",
+          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(30, 41, 59, 0.1)",
         }}
       >
         {/* Left panel dengan branding */}
         <div
           className="hidden lg:flex flex-col justify-between w-1/2 flex-shrink-0 p-12"
-          style={{ background: "linear-gradient(135deg, #F0F4FF, #F5F5F5)" }}
+          style={{ background: "linear-gradient(135deg, #0F172A, #1E293B)" }}
         >
           <div>
             <div className="flex items-center gap-2">
               <div
                 className="w-9 h-9 rounded-lg flex items-center justify-center border-2"
                 style={{
-                  borderColor: "#0F172A",
-                  background: "white",
+                  borderColor: "#60A5FA",
+                  background: "transparent",
                   position: "relative",
                   top: "0",
                   left: "0",
                 }}
               >
                 <IconMail
-                  style={{ color: "#0F172A", width: "26px", height: "22px" }}
+                  style={{ color: "#60A5FA", width: "26px", height: "22px" }}
                 />
               </div>
               <span
                 className="font-semibold text-lg tracking-tight"
                 style={{
-                  color: "#0F172A",
+                  color: "#F8F9FA",
                   fontSize: "22px",
                   position: "relative",
                   top: "0",
@@ -523,7 +523,7 @@ function LoginPage({
                 SiSurat
               </span>
             </div>
-            <p className="text-sm mt-3" style={{ color: "#64748B", lineHeight: "1.6" }}>
+            <p className="text-sm mt-3" style={{ color: "#94A3B8", lineHeight: "1.6" }}>
               Sistem Manajemen Surat Digital
             </p>
           </div>
@@ -679,7 +679,7 @@ function LoginPage({
                 disabled={loading}
                 className="w-full py-3 rounded-xl font-semibold text-white text-sm transition-all duration-200 shadow-md hover:shadow-lg hover:scale-[1.01] active:scale-[0.99]"
                 style={{
-                  background: loading ? "#93C5FD" : "linear-gradient(135deg, #2563EB, #1D4ED8)",
+                  background: loading ? "#93C5FD" : "linear-gradient(135deg, #3B82F6, #2563EB)",
                   cursor: loading ? "not-allowed" : "pointer",
                 }}
               >
@@ -687,7 +687,7 @@ function LoginPage({
               </button>
             </form>
 
-            <p className="text-center text-xs mt-8 pt-6" style={{ color: "#94A3B8", borderTop: "1px solid #F1F5F9" }}>
+            <p className="text-center text-xs mt-8 pt-6" style={{ color: "#64748B", borderTop: "1px solid #E2E8F0" }}>
               © 2024 SiSurat — Sistem Manajemen Surat Digital
             </p>
           </div>
