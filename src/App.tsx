@@ -480,7 +480,7 @@ function LoginPage({
   return (
     <div
       className="min-h-screen flex items-center justify-center p-6"
-      style={{ fontFamily: "Inter, sans-serif", background: "#0F172A" }}
+      style={{ fontFamily: "Inter, sans-serif", background: "#FFFFFF" }}
     >
       <div
         className="flex w-full max-w-6xl rounded-3xl overflow-hidden border border-slate-700"
