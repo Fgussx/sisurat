@@ -1,6 +1,6 @@
 import React, { useState } from "react"
 
-const API_BASE = `http://${window.location.hostname}:5000`
+const API_BASE = ""
 
 interface EditSuratPageProps {
   type: "masuk" | "keluar"

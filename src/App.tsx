@@ -7,7 +7,7 @@ import { EditSuratPage } from "./EditSuratPage"
 import { usePasswordValidation, usePasswordMatch } from "./hooks/usePasswordValidation"
 import { PasswordValidationLabel } from "./components/PasswordValidationLabel"
 
-const API_BASE = `http://${window.location.hostname}:5000`
+const API_BASE = ""
 
 type Page = "login" | "lupa-password" | "dashboard" | "surat-masuk" | "surat-keluar" | "manajemen-akun" | "master-data" | "edit-surat" | "tambah-surat-keluar" | "success"
 
