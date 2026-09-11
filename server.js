@@ -20,12 +20,14 @@ import { Role, Pengguna, FormatNomorSurat, TandaTanganDigital, SuratMasuk, Surat
 
 dotenv.config()
 
-// Configure Cloudinary
-cloudinary.v2.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-})
+// Configure Cloudinary (only if credentials are set)
+if (process.env.CLOUDINARY_CLOUD_NAME) {
+  cloudinary.v2.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+  })
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const app = express()
@@ -129,15 +131,11 @@ function validateRequest(schema) {
   }
 }
 
-// Cloudinary Storage for Multer
-const storage = new CloudinaryStorage({
-  cloudinary: cloudinary.v2,
-  params: {
-    folder: 'sisurat/uploads',
-    resource_type: 'auto',
-  },
-})
+// File upload config
 const MAX_FILE_SIZE = 1.5 * 1024 * 1024
+const storage = process.env.CLOUDINARY_CLOUD_NAME
+  ? new CloudinaryStorage({ cloudinary: cloudinary.v2, params: { folder: 'sisurat/uploads', resource_type: 'auto' } })
+  : multer.memoryStorage()
 const upload = multer({ storage, limits: { fileSize: MAX_FILE_SIZE } })
 
 app.post('/api/upload', (req, res) => {
@@ -155,7 +153,7 @@ app.post('/api/upload', (req, res) => {
       success: true,
       file: {
         nama: req.file.originalname,
-        path: req.file.secure_url,
+        path: req.file.secure_url || `/uploads/${req.file.filename}`,
         ukuran: req.file.size,
         mime: req.file.mimetype,
       },
