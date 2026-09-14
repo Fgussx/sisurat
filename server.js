@@ -6,6 +6,7 @@ import fs from 'fs'
 import multer from 'multer'
 import nodemailer from 'nodemailer'
 import dotenv from 'dotenv'
+import dns from 'dns'
 import mongoose from 'mongoose'
 import jwt from 'jsonwebtoken'
 import cookieParser from 'cookie-parser'
@@ -17,6 +18,9 @@ import { loginLimiter, otpLimiter, passwordResetLimiter, apiLimiter } from './se
 import { Role, Pengguna, FormatNomorSurat, TandaTanganDigital, SuratMasuk, SuratKeluar, Reminder, CustomFolder } from './models.js'
 
 dotenv.config()
+
+// Fix DNS SRV resolution on Vercel serverless
+dns.setServers(['8.8.8.8', '1.1.1.1'])
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const app = express()
