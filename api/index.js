@@ -9,6 +9,9 @@ import cookieParser from 'cookie-parser'
 import helmet from 'helmet'
 import bcrypt from 'bcryptjs'
 import dotenv from 'dotenv'
+import cloudinary from 'cloudinary'
+import multer from 'multer'
+import { CloudinaryStorage } from 'multer-storage-cloudinary'
 import * as validators from '../server/validators.js'
 import { loginLimiter, otpLimiter, passwordResetLimiter, apiLimiter } from '../server/rateLimiters.js'
 import { Role, Pengguna, SuratMasuk, SuratKeluar, Reminder, CustomFolder, TandaTanganDigital, FormatNomorSurat } from '../models.js'
@@ -562,6 +565,79 @@ app.post('/api/reset-password', passwordResetLimiter, async (req, res) => {
     await user.save()
     res.json({ success: true, message: 'Password berhasil direset' })
   } catch (error) { res.status(500).json({ success: false, error: 'Server error' }) }
+})
+
+// ========== FILE UPLOAD (Cloudinary) ==========
+if (process.env.CLOUDINARY_CLOUD_NAME) {
+  cloudinary.v2.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+  })
+}
+
+const storage = process.env.CLOUDINARY_CLOUD_NAME
+  ? new CloudinaryStorage({ cloudinary: cloudinary.v2, params: { folder: 'sisurat/uploads', resource_type: 'auto' } })
+  : new multer.MemoryStorage()
+const upload = multer({ storage, limits: { fileSize: 1.5 * 1024 * 1024 } })
+
+app.post('/api/upload', (req, res) => {
+  upload.single('file')(req, res, (err) => {
+    if (err) {
+      if (err.code === 'LIMIT_FILE_SIZE') return res.status(400).json({ error: 'Ukuran file maksimal 1,5 MB' })
+      return res.status(400).json({ error: err.message || 'Gagal mengunggah file' })
+    }
+    if (!req.file) return res.status(400).json({ error: 'File wajib diunggah' })
+    res.json({
+      success: true,
+      file: {
+        nama: req.file.originalname,
+        path: req.file.secure_url || '',
+        ukuran: req.file.size,
+        mime: req.file.mimetype,
+      },
+    })
+  })
+})
+
+app.get('/api/file-data', async (req, res) => {
+  const nama = (req.query.nama || '').replace(/[^a-zA-Z0-9._-]/g, '')
+  if (!nama) return res.status(400).json({ error: 'Nama file wajib diisi' })
+  try {
+    if (process.env.CLOUDINARY_CLOUD_NAME) {
+      const url = `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/raw/upload/sisurat/uploads/${nama}`
+      const response = await fetch(url)
+      if (!response.ok) {
+        const imgUrl = `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/image/upload/sisurat/uploads/${nama}`
+        const imgResponse = await fetch(imgUrl)
+        if (!imgResponse.ok) return res.status(404).json({ error: 'File tidak ditemukan' })
+        const buffer = await imgResponse.arrayBuffer()
+        res.json({ success: true, nama, data: Buffer.from(buffer).toString('base64') })
+      } else {
+        const buffer = await response.arrayBuffer()
+        res.json({ success: true, nama, data: Buffer.from(buffer).toString('base64') })
+      }
+    } else {
+      res.status(404).json({ error: 'Cloudinary belum dikonfigurasi' })
+    }
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.get('/api/file', async (req, res) => {
+  const nama = (req.query.nama || '').replace(/[^a-zA-Z0-9._-]/g, '')
+  if (!nama) return res.status(400).json({ error: 'Nama file wajib diisi' })
+  try {
+    if (process.env.CLOUDINARY_CLOUD_NAME) {
+      const rawUrl = `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/raw/upload/sisurat/uploads/${nama}`
+      res.redirect(rawUrl)
+    } else {
+      res.status(404).json({ error: 'Cloudinary belum dikonfigurasi' })
+    }
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' })
+  }
 })
 
 // SPA fallback for non-API routes
