@@ -3,9 +3,6 @@ import mongoose from 'mongoose'
 
 dns.setServers(['8.8.8.8', '1.1.1.1'])
 
-let cached = global.mongoose
-if (!cached) cached = global.mongoose = { conn: null, promise: null }
-
 export default async function handler(req, res) {
   const results = {
     mongodb: { status: 'unknown', error: null, latency: null },
@@ -24,14 +21,13 @@ export default async function handler(req, res) {
   // Test MongoDB connection
   try {
     const start = Date.now()
-    if (!cached.conn) {
-      cached.conn = await mongoose.connect(process.env.MONGODB_URI, {
+    if (mongoose.connection.readyState < 1) {
+      await mongoose.connect(process.env.MONGODB_URI, {
         serverSelectionTimeoutMS: 5000,
         connectTimeoutMS: 5000,
       })
     }
-    await cached.conn.asPromise()
-    const db = cached.conn.connection.db
+    const db = mongoose.connection.db
 
     // Run a simple ping
     await db.admin().ping()
