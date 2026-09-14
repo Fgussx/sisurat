@@ -4,7 +4,7 @@ import bubleSurat from "./assets/buble-surat.png"
 import bubleOrang from "./assets/orang.png"
 import { EditSuratPage } from "./EditSuratPage"
 
-const API_BASE = `http://${window.location.hostname}:5000`
+const API_BASE = ""
 
 type Page = "login" | "lupa-password" | "dashboard" | "surat-masuk" | "surat-keluar" | "manajemen-akun" | "master-data" | "edit-surat" | "tambah-surat-keluar" | "success"
 
