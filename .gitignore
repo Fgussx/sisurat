@@ -1,11 +1,36 @@
+﻿# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Dependencies
 node_modules/
+package-lock.json
+yarn.lock
+
+# Build outputs
 dist/
 build/
-.cache/
-.env*
-.vite/
-uploads/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+logs/
 *.log
-.claude-replay.*
-.tmp-*
-server.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime
+uploads/
+.vercel
+
+# OS
+Thumbs.db
+.DS_Store

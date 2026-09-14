@@ -12,6 +12,8 @@ import jwt from 'jsonwebtoken'
 import cookieParser from 'cookie-parser'
 import helmet from 'helmet'
 import joi from 'joi'
+import cloudinary from 'cloudinary'
+import { CloudinaryStorage } from 'multer-storage-cloudinary'
 import logger from './server/logger.js'
 import * as validators from './server/validators.js'
 import { loginLimiter, otpLimiter, passwordResetLimiter, apiLimiter } from './server/rateLimiters.js'
@@ -21,6 +23,15 @@ dotenv.config()
 
 // Fix DNS SRV resolution on Vercel serverless
 dns.setServers(['8.8.8.8', '1.1.1.1'])
+
+// Configure Cloudinary (only if credentials are set)
+if (process.env.CLOUDINARY_CLOUD_NAME) {
+  cloudinary.v2.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+  })
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const app = express()
@@ -125,58 +136,10 @@ function validateRequest(schema) {
 }
 
 // File upload config
-const uploadDir = path.join(__dirname, 'uploads')
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true })
-}
-app.use('/uploads', (req, res, next) => {
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Content-Disposition', 'inline')
-  res.setHeader('X-Content-Type-Options', 'nosniff')
-  next()
-}, express.static(uploadDir))
-
-app.get('/api/file', (req, res) => {
-  const nama = path.basename(req.query.nama || '')
-  if (!nama) {
-    return res.status(400).json({ error: 'Nama file wajib diisi' })
-  }
-  const fullPath = path.join(uploadDir, nama)
-  if (!fs.existsSync(fullPath)) {
-    return res.status(404).json({ error: 'File tidak ditemukan' })
-  }
-  res.setHeader('Content-Disposition', 'attachment')
-  res.setHeader('X-Content-Type-Options', 'nosniff')
-  res.sendFile(fullPath)
-})
-
-app.get('/api/file-data', (req, res) => {
-  const nama = path.basename(req.query.nama || '')
-  if (!nama) {
-    return res.status(400).json({ error: 'Nama file wajib diisi' })
-  }
-  const fullPath = path.join(uploadDir, nama)
-  if (!fs.existsSync(fullPath)) {
-    return res.status(404).json({ error: 'File tidak ditemukan' })
-  }
-  try {
-    const data = fs.readFileSync(fullPath)
-    res.json({ success: true, nama, data: data.toString('base64') })
-  } catch (error) {
-    console.error('Error reading file:', error)
-    res.status(500).json({ error: 'Server error' })
-  }
-})
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadDir),
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname)
-    const base = path.basename(file.originalname, ext).replace(/\s+/g, '_')
-    cb(null, `${Date.now()}_${base}${ext}`)
-  },
-})
 const MAX_FILE_SIZE = 1.5 * 1024 * 1024
+const storage = process.env.CLOUDINARY_CLOUD_NAME
+  ? new CloudinaryStorage({ cloudinary: cloudinary.v2, params: { folder: 'sisurat/uploads', resource_type: 'auto' } })
+  : multer.memoryStorage()
 const upload = multer({ storage, limits: { fileSize: MAX_FILE_SIZE } })
 
 app.post('/api/upload', (req, res) => {
@@ -194,7 +157,7 @@ app.post('/api/upload', (req, res) => {
       success: true,
       file: {
         nama: req.file.originalname,
-        path: `/uploads/${req.file.filename}`,
+        path: req.file.secure_url || `/uploads/${req.file.filename}`,
         ukuran: req.file.size,
         mime: req.file.mimetype,
       },
@@ -202,7 +165,7 @@ app.post('/api/upload', (req, res) => {
   })
 })
 
-// Connect to MongoDB
+// Connect to MongoDB (cached for Vercel serverless)
 const mongooseOptions = {
   serverSelectionTimeoutMS: 30000,
   socketTimeoutMS: 30000,
@@ -215,14 +178,26 @@ const mongooseOptions = {
   serverApi: { version: '1', strict: true, deprecationErrors: true },
 }
 
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/sisurat', mongooseOptions)
-  .then(() => {
+let cached = global.mongoose
+if (!cached) cached = global.mongoose = { conn: null, promise: null }
+
+async function connectDB() {
+  if (cached.conn) return cached.conn
+  if (!cached.promise) {
+    cached.promise = mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/sisurat', mongooseOptions)
+      .then((m) => m)
+  }
+  try {
+    cached.conn = await cached.promise
     logger.info('MongoDB connected successfully')
     initializeDefaultRoles()
-  })
-  .catch(err => {
+  } catch (err) {
     logger.error('MongoDB connection error:', { error: err.message, stack: err.stack })
-  })
+  }
+  return cached.conn
+}
+
+connectDB()
 
 const db = mongoose.connection
 
@@ -1311,20 +1286,34 @@ app.post('/api/migrate/isi-surat', async (req, res) => {
 
 const PORT = process.env.PORT || 5000
 
-app.use(express.static(path.join(__dirname, 'dist')))
+if (process.env.VERCEL !== '1') {
+  app.use(express.static(path.join(__dirname, 'dist')))
 
-// Serve print-pdf page
-app.get('/print-pdf', (req, res) => {
-  res.sendFile(path.join(__dirname, 'dist', 'index.html'))
-})
+  // Serve print-pdf page
+  app.get('/print-pdf', (req, res) => {
+    res.sendFile(path.join(__dirname, 'dist', 'index.html'))
+  })
 
-app.use((req, res, next) => {
-  if (req.method === 'GET' && !req.path.startsWith('/api')) {
-    return res.sendFile(path.join(__dirname, 'dist', 'index.html'))
-  }
-  next()
-})
+  app.use((req, res, next) => {
+    if (req.method === 'GET' && !req.path.startsWith('/api')) {
+      return res.sendFile(path.join(__dirname, 'dist', 'index.html'))
+    }
+    next()
+  })
+}
 
-app.listen(PORT, () => {
-  console.log(`Server berjalan di http://0.0.0.0:${PORT}`)
-})
+// Ensure DB connection on every request (Vercel serverless)
+if (process.env.VERCEL === '1') {
+  app.use(async (req, res, next) => {
+    await connectDB()
+    next()
+  })
+}
+
+if (process.env.VERCEL !== '1') {
+  app.listen(PORT, () => {
+    console.log(`Server berjalan di http://0.0.0.0:${PORT}`)
+  })
+}
+
+export default app

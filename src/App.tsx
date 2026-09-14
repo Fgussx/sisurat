@@ -2,7 +2,10 @@ import React, { useState } from "react"
 import logoSandya from "./assets/logo-sandya.png"
 import bubleSurat from "./assets/buble-surat.png"
 import bubleOrang from "./assets/orang.png"
+import ttdImage from "./assets/ttd.png"
 import { EditSuratPage } from "./EditSuratPage"
+import { usePasswordValidation, usePasswordMatch } from "./hooks/usePasswordValidation"
+import { PasswordValidationLabel } from "./components/PasswordValidationLabel"
 
 const API_BASE = ""
 
@@ -442,12 +445,17 @@ function LoginPage({
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+  const passwordValidation = usePasswordValidation(password)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
     if (!username || !password) {
       setError("Username dan password wajib diisi.")
+      return
+    }
+    if (password.length < 8) {
+      setError("Password minimal 8 karakter")
       return
     }
     setLoading(true)
@@ -473,37 +481,40 @@ function LoginPage({
   return (
     <div
       className="min-h-screen flex items-center justify-center p-6"
-      style={{ fontFamily: "Inter, sans-serif", background: "#F5F5F5" }}
+      style={{ fontFamily: "Inter, sans-serif", background: "#FFFFFF" }}
     >
       <div
-        className="flex w-full max-w-6xl rounded-3xl shadow-2xl overflow-hidden"
-        style={{ background: "white" }}
+        className="flex w-full max-w-6xl rounded-3xl overflow-hidden border border-slate-700"
+        style={{
+          background: "white",
+          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(30, 41, 59, 0.1)",
+        }}
       >
         {/* Left panel dengan branding */}
         <div
           className="hidden lg:flex flex-col justify-between w-1/2 flex-shrink-0 p-12"
-          style={{ background: "#F5F5F5", borderRight: "1px solid #E0E0E0" }}
+          style={{ background: "linear-gradient(135deg, #0F172A, #1E293B)" }}
         >
           <div>
             <div className="flex items-center gap-2">
               <div
                 className="w-9 h-9 rounded-lg flex items-center justify-center border-2"
                 style={{
-                  borderColor: "#0F172A",
-                  background: "white",
+                  borderColor: "#60A5FA",
+                  background: "transparent",
                   position: "relative",
                   top: "0",
                   left: "0",
                 }}
               >
                 <IconMail
-                  style={{ color: "#0F172A", width: "26px", height: "22px" }}
+                  style={{ color: "#60A5FA", width: "26px", height: "22px" }}
                 />
               </div>
               <span
                 className="font-semibold text-lg tracking-tight"
                 style={{
-                  color: "#0F172A",
+                  color: "#F8F9FA",
                   fontSize: "22px",
                   position: "relative",
                   top: "0",
@@ -513,6 +524,9 @@ function LoginPage({
                 SiSurat
               </span>
             </div>
+            <p className="text-sm mt-3" style={{ color: "#94A3B8", lineHeight: "1.6" }}>
+              Sistem Manajemen Surat Digital
+            </p>
           </div>
 
           <div className="flex flex-col items-center justify-center flex-1">
@@ -569,18 +583,21 @@ function LoginPage({
           <div className="w-full max-w-sm">
             <div className="mb-8">
               <h2
-                className="text-4xl font-bold mb-1"
+                className="text-2xl font-bold mb-1"
                 style={{ color: "#0F172A" }}
               >
                 Login
               </h2>
+              <p className="text-sm" style={{ color: "#64748B" }}>
+                Masuk ke akun Anda
+              </p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label
                   className="block text-sm font-medium mb-2"
-                  style={{ color: "#0F172A" }}
+                  style={{ color: "#334155" }}
                 >
                   Username
                 </label>
@@ -589,10 +606,10 @@ function LoginPage({
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="Masukkan username"
-                  className="w-full px-4 py-3 rounded-lg border text-slate-900 text-sm placeholder-gray-400 outline-none transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                  className="w-full px-4 py-3 rounded-xl border text-slate-900 text-sm placeholder-gray-400 outline-none transition-all duration-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 shadow-sm"
                   style={{
                     fontFamily: "Inter, sans-serif",
-                    borderColor: "#E0E0E0",
+                    borderColor: "#E2E8F0",
                     background: "white",
                   }}
                 />
@@ -600,7 +617,7 @@ function LoginPage({
               <div>
                 <label
                   className="block text-sm font-medium mb-2"
-                  style={{ color: "#0F172A" }}
+                  style={{ color: "#334155" }}
                 >
                   Password
                 </label>
@@ -610,17 +627,17 @@ function LoginPage({
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Masukkan password"
-                    className="w-full px-4 py-3 rounded-lg border text-slate-900 text-sm placeholder-gray-400 outline-none transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-200 pr-12"
+                    className="w-full px-4 py-3 rounded-xl border text-slate-900 text-sm placeholder-gray-400 outline-none transition-all duration-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 pr-12 shadow-sm"
                     style={{
                       fontFamily: "Inter, sans-serif",
-                      borderColor: "#E0E0E0",
+                      borderColor: "#E2E8F0",
                       background: "white",
                     }}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword((s) => !s)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center w-7 h-7 rounded-md transition-colors"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center w-7 h-7 rounded-md transition-colors duration-200"
                     style={{ color: "#94A3B8" }}
                     title={showPassword ? "Sembunyikan password" : "Lihat password"}
                     onMouseEnter={(e) =>
@@ -633,31 +650,37 @@ function LoginPage({
                     <IconEye open={showPassword} />
                   </button>
                 </div>
+                <PasswordValidationLabel
+                  message={passwordValidation.message}
+                  color={passwordValidation.color}
+                  icon={passwordValidation.icon}
+                  isEmpty={passwordValidation.isEmpty}
+                />
               </div>
 
               <div className="text-right">
                 <button
                   type="button"
                   onClick={onLupaPassword}
-                  className="text-sm font-medium transition-colors"
-                  style={{ color: "#0078D4" }}
+                  className="text-sm font-medium transition-colors duration-200"
+                  style={{ color: "#2563EB" }}
                 >
                   Lupa Password?
                 </button>
               </div>
 
               {error && (
-                <div className="flex items-center gap-2 px-4 py-3 rounded-lg bg-red-50 border border-red-300">
-                  <span className="text-red-700 text-sm">{error}</span>
+                <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-red-50 border border-red-200">
+                  <span className="text-red-600 text-sm">{error}</span>
                 </div>
               )}
 
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 rounded-lg font-bold text-white text-base transition-all"
+                className="w-full py-3 rounded-xl font-semibold text-white text-sm transition-all duration-200 shadow-md hover:shadow-lg hover:scale-[1.01] active:scale-[0.99]"
                 style={{
-                  background: loading ? "#5B9BD5" : "#0078D4",
+                  background: loading ? "#93C5FD" : "linear-gradient(135deg, #3B82F6, #2563EB)",
                   cursor: loading ? "not-allowed" : "pointer",
                 }}
               >
@@ -665,7 +688,7 @@ function LoginPage({
               </button>
             </form>
 
-            <p className="text-center text-xs mt-6" style={{ color: "#999" }}>
+            <p className="text-center text-xs mt-8 pt-6" style={{ color: "#64748B", borderTop: "1px solid #E2E8F0" }}>
               © 2024 SiSurat — Sistem Manajemen Surat Digital
             </p>
           </div>
@@ -685,6 +708,8 @@ function LupaPasswordPage({ onBack }: { onBack: () => void }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState(false)
+  const newPasswordValidation = usePasswordValidation(newPassword)
+  const confirmPasswordValidation = usePasswordMatch(newPassword, confirmPassword)
 
   const handleSendOTP = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -746,6 +771,10 @@ function LupaPasswordPage({ onBack }: { onBack: () => void }) {
     e.preventDefault()
     if (!newPassword || !confirmPassword) {
       setError("Password baru wajib diisi")
+      return
+    }
+    if (newPassword.length < 8) {
+      setError("Password minimal 8 karakter")
       return
     }
     if (newPassword !== confirmPassword) {
@@ -970,6 +999,12 @@ function LupaPasswordPage({ onBack }: { onBack: () => void }) {
                       placeholder="Masukkan password baru"
                       className="w-full px-4 py-2.5 rounded-lg border border-slate-200 text-slate-900 text-sm placeholder-slate-400 outline-none transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                     />
+                    <PasswordValidationLabel
+                      message={newPasswordValidation.message}
+                      color={newPasswordValidation.color}
+                      icon={newPasswordValidation.icon}
+                      isEmpty={newPasswordValidation.isEmpty}
+                    />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1.5">
@@ -981,6 +1016,12 @@ function LupaPasswordPage({ onBack }: { onBack: () => void }) {
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="Konfirmasi password baru"
                       className="w-full px-4 py-2.5 rounded-lg border border-slate-200 text-slate-900 text-sm placeholder-slate-400 outline-none transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    />
+                    <PasswordValidationLabel
+                      message={confirmPasswordValidation.message}
+                      color={confirmPasswordValidation.color}
+                      icon={confirmPasswordValidation.icon}
+                      isEmpty={confirmPasswordValidation.isEmpty}
                     />
                   </div>
                   {error && (
@@ -1740,6 +1781,7 @@ function ModalTambahAkun({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [saved, setSaved] = useState(false)
+  const passwordValidation = usePasswordValidation(password)
 
   React.useEffect(() => {
     const fetchRoles = async () => {
@@ -1765,6 +1807,11 @@ function ModalTambahAkun({
     
     if (!username || !nama || !email || !password || !idRole) {
       setError("Semua field wajib diisi termasuk role")
+      return
+    }
+
+    if (password.length < 8) {
+      setError("Password minimal 8 karakter")
       return
     }
 
@@ -1898,6 +1945,12 @@ function ModalTambahAkun({
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Masukkan password"
               className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-900 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all"
+            />
+            <PasswordValidationLabel
+              message={passwordValidation.message}
+              color={passwordValidation.color}
+              icon={passwordValidation.icon}
+              isEmpty={passwordValidation.isEmpty}
             />
           </div>
 
@@ -2164,12 +2217,18 @@ function ModalGantiPassword({
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
   const [saved, setSaved] = useState(false)
+  const newPasswordValidation = usePasswordValidation(newPassword)
+  const confirmPasswordValidation = usePasswordMatch(newPassword, confirmPassword)
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
     if (!newPassword) {
       setError("Password baru wajib diisi")
+      return
+    }
+    if (newPassword.length < 8) {
+      setError("Password minimal 8 karakter")
       return
     }
     if (newPassword !== confirmPassword) {
@@ -2264,6 +2323,12 @@ function ModalGantiPassword({
                 <IconEye open={showPassword} />
               </button>
             </div>
+            <PasswordValidationLabel
+              message={newPasswordValidation.message}
+              color={newPasswordValidation.color}
+              icon={newPasswordValidation.icon}
+              isEmpty={newPasswordValidation.isEmpty}
+            />
           </div>
 
           <div>
@@ -2276,6 +2341,12 @@ function ModalGantiPassword({
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="Konfirmasi password baru"
               className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-900 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all"
+            />
+            <PasswordValidationLabel
+              message={confirmPasswordValidation.message}
+              color={confirmPasswordValidation.color}
+              icon={confirmPasswordValidation.icon}
+              isEmpty={confirmPasswordValidation.isEmpty}
             />
           </div>
 
@@ -3989,7 +4060,7 @@ function ModalPreviewSurat({
           <div className="mx-auto" style={{ maxWidth: "210mm", fontFamily: "'Times New Roman', Times, serif", color: "#111" }}>
             {/* Logo + Company */}
             <div className="flex justify-between items-start mb-8">
-              <img src="/src/assets/logo-sandya.png" alt="logo" className="h-16" />
+              <img src={logoSandya} alt="logo" className="h-16" />
               <div className="text-right text-xs leading-relaxed">
                 <p className="font-bold text-sm tracking-wide">SANDYA NETWORKS KANTOR LAYANAN PACITAN</p>
                 <p>Jl. Jend. Sudirman No. 3, Bowongan, Arjowinangun, Kecamatan Pacitan</p>
@@ -4035,7 +4106,7 @@ function ModalPreviewSurat({
                 <p className="mb-1">Hormat kami,</p>
                 <p className="mb-1">Sandya Networks</p>
                 <img
-                  src="/src/assets/ttd.png"
+                  src={ttdImage}
                   alt="tanda tangan"
                   className="h-16 ml-auto mb-1"
                 />
