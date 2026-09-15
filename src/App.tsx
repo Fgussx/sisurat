@@ -1,10 +1,9 @@
 import React, { useState } from "react"
+import logoSandya from "./assets/logo-sandya.png"
+import bubleSurat from "./assets/buble-surat.png"
+import bubleOrang from "./assets/orang.png"
+import ttdImage from "./assets/ttd.png"
 import { EditSuratPage } from "./EditSuratPage"
-
-const logoSandya = "/logo-sandya.png"
-const bubleSurat = "/buble-surat.png"
-const bubleOrang = "/orang.png"
-const ttdImage = "/ttd.png"
 import { usePasswordValidation, usePasswordMatch } from "./hooks/usePasswordValidation"
 import { PasswordValidationLabel } from "./components/PasswordValidationLabel"
 
